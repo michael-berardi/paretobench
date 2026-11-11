@@ -1,0 +1,471 @@
+{
+  "pb_version": "0.1.0",
+  "bench": "model",
+  "task_set": "3c3185f48a7f97a0",
+  "rows": 180,
+  "bootstrap": {
+    "resamples": 5000,
+    "seed": 1,
+    "unit": "(task, rep) pairs"
+  },
+  "groups": {
+    "steak-pi": {
+      "rates": {
+        "deepseek": {
+          "i": 3.5e-08,
+          "cr": 5e-09,
+          "cw": 0,
+          "o": 5e-07
+        },
+        "haiku": {
+          "i": 1e-07,
+          "cr": 1e-08,
+          "cw": 2e-07,
+          "o": 5e-07
+        },
+        "qwen": {
+          "i": 0,
+          "cr": 0,
+          "cw": 0,
+          "o": 0
+        }
+      },
+      "metric": "weighted tokens",
+      "note": "at least one model is on a flat plan with no per-token price, so every model is compared in weighted tokens; dollars are shown beside each priced model",
+      "baseline": "deepseek",
+      "entries": {
+        "deepseek": {
+          "correct": 60,
+          "total": 60,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9398281478579101,
+            1.0
+          ],
+          "i": 430471,
+          "cr": 2757888,
+          "cw": 0,
+          "o": 90529,
+          "metric": 1068375.8,
+          "metric_per_correct": 17806.263333333332,
+          "median_sec": 18.25,
+          "p90_sec": 39.0,
+          "median_turns": 6.0,
+          "dollars": 0.074120425,
+          "frontier_cost": false,
+          "frontier_time": true
+        },
+        "haiku": {
+          "correct": 58,
+          "total": 60,
+          "correct_rate": 0.9666666666666667,
+          "wilson95": [
+            0.886362257256914,
+            0.9908106807438021
+          ],
+          "i": 556,
+          "cr": 3065250,
+          "cw": 334424,
+          "o": 72951,
+          "metric": 1016915.0,
+          "metric_per_correct": 17533.01724137931,
+          "median_sec": 17.4,
+          "p90_sec": 59.2,
+          "median_turns": 4.0,
+          "dollars": 0.1340684,
+          "frontier_cost": false,
+          "frontier_time": true
+        },
+        "qwen": {
+          "correct": 60,
+          "total": 60,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9398281478579101,
+            1.0
+          ],
+          "i": 521053,
+          "cr": 1610496,
+          "cw": 0,
+          "o": 46165,
+          "metric": 866762.6,
+          "metric_per_correct": 14446.043333333333,
+          "median_sec": 39.45,
+          "p90_sec": 85.6,
+          "median_turns": 5.0,
+          "dollars": null,
+          "frontier_cost": true,
+          "frontier_time": false
+        }
+      },
+      "vs_baseline": {
+        "haiku": {
+          "pairs": 60,
+          "cost": {
+            "ratio": 0.951832679100369,
+            "ci95": [
+              0.7556772727145247,
+              1.2105057730147402
+            ]
+          },
+          "total_input": {
+            "ratio": 1.0664514253256927,
+            "ci95": [
+              0.924589751977554,
+              1.2335880271028774
+            ]
+          },
+          "output": {
+            "ratio": 0.8058301759657126,
+            "ci95": [
+              0.7076520301304428,
+              0.9085047496426363
+            ]
+          },
+          "wall_time": {
+            "ratio": 1.485187969924812,
+            "ci95": [
+              1.0346209601773684,
+              2.296612827348283
+            ]
+          },
+          "cost_wins": 40,
+          "correct": [
+            58,
+            60
+          ],
+          "discordant": [
+            0,
+            2
+          ],
+          "sign_test_p": 0.5,
+          "verdict": "no clear difference"
+        },
+        "qwen": {
+          "pairs": 60,
+          "cost": {
+            "ratio": 0.8112899973960472,
+            "ci95": [
+              0.719400987940966,
+              0.924871772300893
+            ]
+          },
+          "total_input": {
+            "ratio": 0.6685410896326291,
+            "ci95": [
+              0.593308722531295,
+              0.764556550053058
+            ]
+          },
+          "output": {
+            "ratio": 0.5099470887781816,
+            "ci95": [
+              0.45733674152516585,
+              0.5754817354297198
+            ]
+          },
+          "wall_time": {
+            "ratio": 2.118045112781955,
+            "ci95": [
+              1.8418661205682836,
+              2.4987772846662444
+            ]
+          },
+          "cost_wins": 35,
+          "correct": [
+            60,
+            60
+          ],
+          "discordant": [
+            0,
+            0
+          ],
+          "sign_test_p": null,
+          "verdict": "better"
+        }
+      },
+      "per_task": {
+        "h1": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h10": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h11": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h12": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h2": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h3": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h4": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h5": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            1,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h6": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h7": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h8": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "h9": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t1": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t2": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t3": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t4": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t5": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t6": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t7": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        },
+        "t8": {
+          "deepseek": [
+            3,
+            3
+          ],
+          "haiku": [
+            3,
+            3
+          ],
+          "qwen": [
+            3,
+            3
+          ]
+        }
+      }
+    }
+  }
+}

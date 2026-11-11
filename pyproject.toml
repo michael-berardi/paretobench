@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paretobench"
+version = "0.1.0"
+description = "One open benchmark with two benches: one model across coding-agent harnesses, one harness across models."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Pareto Cybernetics" }]
+dependencies = []
+
+[project.scripts]
+paretobench = "paretobench.cli:main"
+
+[tool.setuptools]
+packages = ["paretobench", "paretobench.harnesses"]

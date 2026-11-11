@@ -1,0 +1,314 @@
+{
+  "pb_version": "0.1.0",
+  "bench": "harness",
+  "task_set": "3c3185f48a7f97a0",
+  "rows": 80,
+  "bootstrap": {
+    "resamples": 5000,
+    "seed": 1,
+    "unit": "(task, rep) pairs"
+  },
+  "groups": {
+    "haiku": {
+      "rates": {
+        "i": 1e-07,
+        "cr": 1e-08,
+        "cw": 2e-07,
+        "o": 5e-07
+      },
+      "metric": "cost $",
+      "note": "Claude subscription model. Stock pi has no route to it; the steak-pi arm reaches it through Steak Pi's own provider.",
+      "baseline": "claude-code",
+      "entries": {
+        "claude-code": {
+          "correct": 39,
+          "total": 40,
+          "correct_rate": 0.975,
+          "wilson95": [
+            0.8711863103652591,
+            0.9955731684973186
+          ],
+          "i": 342,
+          "cr": 4136260,
+          "cw": 186631,
+          "o": 74974,
+          "metric": 0.11621,
+          "metric_per_correct": 0.0029797435897435894,
+          "median_sec": 11.45,
+          "p90_sec": 22.0,
+          "median_turns": 5.0,
+          "dollars": 0.11621,
+          "frontier_cost": false,
+          "frontier_time": true
+        },
+        "steak-pi": {
+          "correct": 40,
+          "total": 40,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9123783988027134,
+            1.0
+          ],
+          "i": 378,
+          "cr": 1870578,
+          "cw": 250097,
+          "o": 48772,
+          "metric": 0.09314897999999999,
+          "metric_per_correct": 0.0023287244999999996,
+          "median_sec": 19.35,
+          "p90_sec": 36.1,
+          "median_turns": 5.0,
+          "dollars": 0.09314897999999999,
+          "frontier_cost": true,
+          "frontier_time": true
+        }
+      },
+      "vs_baseline": {
+        "steak-pi": {
+          "pairs": 40,
+          "cost": {
+            "ratio": 0.8015573530677222,
+            "ci95": [
+              0.5631117241777436,
+              1.166994762365962
+            ]
+          },
+          "total_input": {
+            "ratio": 0.4906173227304658,
+            "ci95": [
+              0.4237404666849433,
+              0.5619922316509715
+            ]
+          },
+          "output": {
+            "ratio": 0.6505188465334649,
+            "ci95": [
+              0.5579131046820242,
+              0.7550719189049946
+            ]
+          },
+          "wall_time": {
+            "ratio": 1.517921146953405,
+            "ci95": [
+              1.3728314238952537,
+              1.6824894514767932
+            ]
+          },
+          "cost_wins": 35,
+          "correct": [
+            40,
+            39
+          ],
+          "discordant": [
+            1,
+            0
+          ],
+          "sign_test_p": 1.0,
+          "verdict": "no clear difference"
+        }
+      },
+      "per_task": {
+        "h1": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h10": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h11": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h12": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h2": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h3": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h4": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h5": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h6": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h7": {
+          "claude-code": [
+            1,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h8": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "h9": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t1": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t2": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t3": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t4": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t5": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t6": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t7": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        },
+        "t8": {
+          "claude-code": [
+            2,
+            2
+          ],
+          "steak-pi": [
+            2,
+            2
+          ]
+        }
+      }
+    }
+  }
+}
