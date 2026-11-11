@@ -49,6 +49,40 @@ Every harness and model solved nearly every task, so this task set separates ent
 show which one can solve harder problems. Tasks are short (a run is 15 to 40 seconds): features built for long
 sessions cost tokens here and cannot pay back.
 
+## Install
+
+One line, no checkout needed:
+
+macOS and Linux:
+
+```sh
+curl -fsSL https://github.com/michael-berardi/paretobench/releases/latest/download/install.sh | sh
+```
+
+Windows (PowerShell 5.1 or 7):
+
+```powershell
+irm https://github.com/michael-berardi/paretobench/releases/latest/download/install.ps1 | iex
+```
+
+What it does: downloads the release bundle, verifies its SHA-256 before installing anything, and puts
+`paretobench` (and `pb`) in `~/.local/bin` (`%LOCALAPPDATA%\ParetoBench\bin` on Windows, added to your
+user PATH). The bundle (package, tasks, configs, docs) lives in `~/.paretobench/app`
+(`%LOCALAPPDATA%\ParetoBench\app` on Windows). Needs Python 3.11 or newer already installed; there are
+no dependencies, so no venv is created. If no suitable Python is found the installer names the one-line
+command that installs it (`brew`, `apt`, `winget`) and stops. If `~/.config/paretobench/models.json` does
+not exist yet, the documented example config is copied there; edit it with your own models and routes
+before running a bench. The installer finishes with `paretobench validate` and `paretobench doctor`
+(missing harness executables are reported but do not fail the install).
+
+Update: re-run the same one-liner; it upgrades in place and keeps your config. Remove: delete
+`~/.paretobench` (or `%LOCALAPPDATA%\ParetoBench`) and the `paretobench`/`pb` shims in the bin folder.
+No sudo, no shell-profile edits. Overrides: `PARETOBENCH_HOME`, `PARETOBENCH_BIN_DIR`,
+`PARETOBENCH_VERSION` (pin a release), `PARETOBENCH_RELEASE_BASE` (download base, used by tests).
+
+Manual route (from a checkout): `./pb ...` runs with no install, or `pip install .` for the
+`paretobench` console script; an installed copy finds the task set through `PARETOBENCH_TASKS`.
+
 ## Quick start (no install)
 
 ```sh
