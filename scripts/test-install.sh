@@ -152,13 +152,14 @@ if (-not $failed) { throw 'corrupted archive was accepted' }
 if (Test-Path '/tmp/h2/app') { throw 'corrupted install left files behind' }
 Write-Host 'PWSH-OK'
 PWSH
-  docker run --rm --name paretobench-pwsh --add-host=host.docker.internal:host-gateway \
+  # The PowerShell image publishes no arm64 variant; run the amd64 one under emulation.
+  docker run --rm --platform linux/amd64 --name paretobench-pwsh --add-host=host.docker.internal:host-gateway \
     -e TEST_BASE="$BASE_DOCKER" -v "$ROOT/dist:/rel:ro" mcr.microsoft.com/powershell \
     pwsh -NoProfile -File /rel/install-test/ps-test.ps1 | tee "$WORK/pwsh.log"
   grep -q "PWSH-OK" "$WORK/pwsh.log" || fail "PowerShell container tests"
 
   say "PSScriptAnalyzer (skipped if it does not install quickly)"
-  docker run --rm --name paretobench-psa -v "$ROOT/dist:/rel:ro" mcr.microsoft.com/powershell \
+  docker run --rm --platform linux/amd64 --name paretobench-psa -v "$ROOT/dist:/rel:ro" mcr.microsoft.com/powershell \
     pwsh -NoProfile -Command '
       $j = Start-Job { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop }
       if (-not (Wait-Job $j -Timeout 180)) { Remove-Job $j -Force; Write-Host "PSScriptAnalyzer: skipped (module install too slow)"; exit 0 }
