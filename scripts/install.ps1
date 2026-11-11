@@ -49,7 +49,7 @@ try {
     $sumsFile = Join-Path $tmp 'SHA256SUMS'
     Invoke-WebRequest "$base/paretobench.tar.gz" -OutFile $archive -UseBasicParsing
     Invoke-WebRequest "$base/SHA256SUMS" -OutFile $sumsFile -UseBasicParsing
-    $want = (Get-Content $sumsFile | Where-Object { $_ -match '\sparsebench\.tar\.gz$' } | Select-Object -First 1)
+    $want = (Get-Content $sumsFile | Where-Object { $_ -match '\s+\*?paretobench\.tar\.gz$' } | Select-Object -First 1)
     $want = if ($want) { ($want -split '\s+')[0].ToLower() } else { '' }
     if (-not $want) { throw 'no checksum for paretobench.tar.gz in SHA256SUMS; nothing was installed.' }
     $got = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower()
