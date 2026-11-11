@@ -130,7 +130,7 @@ try {
         }
         $launcher = Join-Path $binDir 'paretobench'
         if (($env:PATH -split ':') -notcontains $binDir) {
-            Write-Host "Add $binDir to your PATH:  export PATH=""$binDir:`$PATH"""
+            Write-Host "Add $binDir to your PATH:  export PATH=""${binDir}:`$PATH"""
         }
     }
 
