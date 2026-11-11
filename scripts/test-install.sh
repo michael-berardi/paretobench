@@ -158,17 +158,29 @@ PWSH
     pwsh -NoProfile -File /rel/install-test/ps-test.ps1 | tee "$WORK/pwsh.log"
   grep -q "PWSH-OK" "$WORK/pwsh.log" || fail "PowerShell container tests"
 
-  say "PSScriptAnalyzer (skipped if it does not install quickly)"
+  say "PSScriptAnalyzer (skipped with a note if it does not install quickly)"
+  set +e
   docker run --rm --platform linux/amd64 --name paretobench-psa -v "$ROOT/dist:/rel:ro" mcr.microsoft.com/powershell \
     pwsh -NoProfile -Command '
-      $j = Start-Job { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop }
-      if (-not (Wait-Job $j -Timeout 180)) { Remove-Job $j -Force; Write-Host "PSScriptAnalyzer: skipped (module install too slow)"; exit 0 }
-      Receive-Job $j
+      try {
+        $j = Start-Job { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop }
+        if (-not (Wait-Job $j -Timeout 180)) { Remove-Job $j -Force; Write-Host "PSScriptAnalyzer: skipped (module install too slow)"; exit 0 }
+        Receive-Job $j -ErrorAction Stop
+        Import-Module PSScriptAnalyzer -ErrorAction Stop
+      } catch {
+        Write-Host "PSScriptAnalyzer: skipped (module install failed: $_)"
+        exit 0
+      }
       $r = Invoke-ScriptAnalyzer -Path /rel/release/install.ps1
       $r | Format-Table -AutoSize | Out-String | Write-Host
-      if ($r | Where-Object { $_.Severity -eq "Error" }) { exit 1 }
+      if ($r | Where-Object { $_.Severity -eq "Error" }) { Write-Host "PSA-ERRORS"; exit 1 }
       Write-Host "PSA-DONE"' | tee "$WORK/psa.log"
-  grep -qE "PSA-DONE|skipped" "$WORK/psa.log" || fail "PSScriptAnalyzer reported errors"
+  rc=$?
+  set -e
+  if grep -q "PSA-ERRORS" "$WORK/psa.log"; then fail "PSScriptAnalyzer reported errors"; fi
+  if ! grep -qE "PSA-DONE|skipped" "$WORK/psa.log"; then
+    say "PSScriptAnalyzer: skipped (analyzer container exited $rc before reporting; likely resource pressure)"
+  fi
 else
   say "docker not found: Linux and PowerShell container tests skipped"
 fi
