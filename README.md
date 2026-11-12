@@ -16,6 +16,29 @@ one strictly better. A second frontier covers correct rate vs time. Verdicts are
 
 Python 3.11+ standard library only. No dependencies. MIT license. By [Pareto Cybernetics](https://paretocybernetics.com).
 
+## Results, 2026-11-12: six harnesses on one model
+
+Stock Pi, Codex CLI, stock DeepSeek Harness, Steak DSH 0.3.3, Steak Pi 0.28.5 and Steak Pi run lean
+(`steak-pi run --lean`), all on DeepSeek V4.1 Flash, three repeats, paired on task and repeat. Rows and summaries:
+[short set](benchmarks/2026-11-12-harness-deepseek-short), [long set](benchmarks/2026-11-12-harness-deepseek-long-v1).
+
+| Harness | Short set: correct | Short set: cost vs stock Pi (95%) | Long set: correct | Long set: cost vs stock Pi (95%) |
+|---|---|---|---|---|
+| Stock Pi | 60/60 | 1.00 | 33/33 | 1.00 |
+| Steak Pi, lean | 60/60 | 0.80 (0.67 to 0.96), better | 32/33 | 0.80 (0.63 to 1.00), no clear difference |
+| Steak DSH | 60/60 | 1.01 (0.81 to 1.22), no clear difference | 33/33 | 1.20 (0.89 to 1.69), no clear difference |
+| Stock DeepSeek Harness | 60/60 | 1.41 (1.16 to 1.70), worse | 33/33 | 1.50 (1.26 to 1.84), worse |
+| Steak Pi, default | 60/60 | 1.55 (1.33 to 1.79), worse | 33/33 | 0.88 (0.64 to 1.15), no clear difference |
+| Codex CLI | 60/60 | 2.43 (1.96 to 2.99), worse | 32/33 | 2.09 (1.68 to 2.64), worse |
+
+- Steak DSH against stock DeepSeek Harness: 0.71 times the cost on the short set (0.62 to 0.83), better; 0.80 times on
+  the long set (0.63 to 1.02), no clear difference, and 0.68 times the time (0.60 to 0.79).
+- Every Steak arm, and stock Pi, was cheaper than Codex CLI on both sets (0.33 to 0.64 times its cost).
+- What this does not show: one model, one machine. Every harness solved nearly everything, so this compares cost and
+  time, not ability on hard problems. The long set did not separate harnesses on correctness in its pilot, so its
+  correct counts carry little weight; the two misses were both on the same task (L6). Codex CLI ran stock with an
+  empty home on a model it was not built for, and its turn count is a lower bound.
+
 ## Results, 2026-11-11
 
 Twenty small Python tasks, hidden deterministic checkers, every run on a fresh fixture. Raw rows and full summaries

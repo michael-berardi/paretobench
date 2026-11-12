@@ -12,6 +12,8 @@
 - `steak-pi-lean` now matches `steak-pi run --lean` since Steak Pi 0.28.5: `--exclude-tools
   ultraterm_subagents,ultraterm_hub,todo` and `STEAK_PI_WORK_RULES_BRIEF=1`. Rows from the earlier definition (0.3.x)
   are not the same arm.
+- Published results: six harnesses on one model, short set and long set, in
+  `benchmarks/2026-11-12-harness-deepseek-short/` and `benchmarks/2026-11-12-harness-deepseek-long-v1/`.
 
 ## 0.3.1 - 2026-11-12
 
