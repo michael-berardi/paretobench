@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "paretobench"
-version = "0.4.0"
+version = "0.4.1"
 description = "One open benchmark with two benches: one model across coding-agent harnesses, one harness across models."
 readme = "README.md"
 requires-python = ">=3.11"

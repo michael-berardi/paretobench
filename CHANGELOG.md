@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 - 2026-11-12
+
+- A run killed at the hard timeout now keeps its raw event stream under `PB_LOG_DIR`, like every other run. It used to
+  be dropped, which left a hang with no evidence: one such run in the results below could not be explained.
+- Published results: all six harnesses on a second model, short set, in
+  `benchmarks/2026-11-12-harness-haiku-openrouter-short/`, and three arms on the same model through a subscription in
+  `benchmarks/2026-11-12-harness-haiku-short/`.
+
 ## 0.4.0 - 2026-11-12
 
 - New harness arm `codex`: stock Codex CLI (`codex exec --json --skip-git-repo-check --ephemeral`), found with

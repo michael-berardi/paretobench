@@ -251,6 +251,10 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
             env[e["key_env"]] = e["key_val"]
         try:
             rc, out, err = child(cmd, cwd, env, tmo)
+        except H.RunFail as fail:
+            # A run killed at the hard timeout is the one whose event stream matters most: keep what it wrote.
+            keep_log(e["name"], slot, getattr(fail, "out", ""), getattr(fail, "err", "") or str(fail))
+            raise
         finally:
             a.after_run(lane)
         keep_log(e["name"], slot, out, err)

@@ -213,6 +213,52 @@ class TestWarmupAbort(RunnerTestBase):
         self.assertFalse(os.path.exists(os.path.join(self.out, "rows.jsonl")))
 
 
+HANG_SCRIPT = """\
+import os, sys, time
+calls = 0
+if os.path.exists(sys.argv[1]):
+    with open(sys.argv[1]) as f:
+        calls = len(f.read().splitlines())
+with open(sys.argv[1], "a") as f:
+    f.write("call\\n")
+if calls == 0:
+    print("ok")  # the warm-up answers
+    sys.exit(0)
+print('{"type": "session", "note": "started"}', flush=True)
+sys.stderr.write("still waiting\\n"); sys.stderr.flush()
+time.sleep(300)
+"""
+
+
+class TestTimeoutKeepsLog(RunnerTestBase):
+    """A run killed at the hard timeout keeps what it wrote: that event stream is the only evidence of a hang."""
+
+    def test_timed_out_run_writes_its_log(self):
+        hang = os.path.join(self.d, "hang_harness.py")
+        with open(hang, "w") as f:
+            f.write(HANG_SCRIPT)
+        logs = os.path.join(self.d, "logs")
+        adapter = fake_adapter(hang, self.count_file)
+        entries = RUN.build_entries("harness", MODELS, self.ex, model="fm", harness_names=["pi"],
+                                    registry={"pi": adapter})
+        old = os.environ.get("PB_LOG_DIR")
+        os.environ["PB_LOG_DIR"] = logs
+        try:
+            RUN.run_bench("harness", entries, 1, 1, self.out, task_names=["t3"], timeout=2, ex=self.ex)
+        finally:
+            if old is None:
+                os.environ.pop("PB_LOG_DIR", None)
+            else:
+                os.environ["PB_LOG_DIR"] = old
+        row = self.rows()[0]
+        self.assertFalse(row["ok"])
+        self.assertIn("timeout after 2s", row["err"])
+        with open(os.path.join(logs, "pi-t3-0.jsonl")) as f:
+            kept = f.read()
+        self.assertIn('"note": "started"', kept)
+        self.assertIn("still waiting", kept)
+
+
 class TestStopCleanup(unittest.TestCase):
     def test_sigterm_kills_child_and_removes_workdir(self):
         with tempfile.TemporaryDirectory() as d:

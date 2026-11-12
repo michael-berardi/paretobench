@@ -39,8 +39,28 @@ Stock Pi, Codex CLI, stock DeepSeek Harness, Steak DSH 0.3.3, Steak Pi 0.28.5 an
   correct counts carry little weight; the two misses were both on the same task (L6). Codex CLI ran stock with an
   empty home on a model it was not built for, and its turn count is a lower bound.
 
-**A second model, 2026-11-12.** Claude Haiku 5.5, short set, three repeats
-([rows](benchmarks/2026-11-12-harness-haiku-short)). Only three arms can reach this model here: Steak Pi 0.28.5,
+**A second model, all six harnesses, 2026-11-12.** Claude Haiku 5.5 on a per-token route, short set, three repeats
+([rows](benchmarks/2026-11-12-harness-haiku-openrouter-short)).
+
+| Harness | Correct | Cost vs stock Pi (95%) |
+|---|---|---|
+| Stock Pi | 60/60 | 1.00 |
+| Steak Pi, lean | 60/60 | 0.83 (0.65 to 1.03), no clear difference |
+| Steak Pi, default | 59/60 | 0.94 (0.77 to 1.15), no clear difference |
+| Steak DSH | 60/60 | 1.34 (1.19 to 1.51), worse |
+| Stock DeepSeek Harness | 60/60 | 1.41 (1.22 to 1.64), worse |
+| Codex CLI | 60/60 | 1.94 (1.56 to 2.38), worse |
+
+- Steak DSH against stock DeepSeek Harness: 0.95 times the cost (0.84 to 1.10), no clear difference. Its clear win on
+  the first model (0.71 times) did not carry over to this one.
+- Steak Pi run lean against the default run: 0.88 times the cost (0.77 to 1.00), better.
+- Every other arm was cheaper than Codex CLI (0.43 to 0.73 times its cost).
+- The one Steak Pi miss was a run killed at the 600-second hard timeout with nothing recorded, not a wrong answer. The
+  same task run 12 more times finished 12 of 12 in at most 23 seconds, so the cause is unknown. The runner used to
+  drop the log of a timed-out run; since 0.4.1 it keeps it.
+
+**The same model on a subscription, 2026-11-12.** Short set, three repeats
+([rows](benchmarks/2026-11-12-harness-haiku-short)). Only three arms can reach the model this way: Steak Pi 0.28.5,
 Steak Pi run lean, and Claude Code. Cost uses the model's list prices.
 
 | Harness | Correct | Cost vs Claude Code (95%) |
