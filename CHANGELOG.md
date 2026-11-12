@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-11-12
 
 - New task set `long-v1` in `tasks-long/`: eleven long, multi-step tasks (feature, bug hunt, refactor, read-only
   scouting, mutation-judged test writing, compaction stress, hard codegen, delegated wave, edit batch, tool-loop
