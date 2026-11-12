@@ -34,7 +34,7 @@ def _harness_cmd(args):
     entries = RUN.build_entries("harness", models, ex, model=args.model,
                                 harness_names=names, variants=variants)
     RUN.run_bench("harness", entries, args.reps, args.par, args.out,
-                  task_names=tasks, timeout=args.timeout, ex=ex)
+                  task_names=tasks, timeout=args.timeout, ex=ex, task_set=args.task_set)
 
 
 def _model_cmd(args):
@@ -44,7 +44,7 @@ def _model_cmd(args):
     tasks = [t.strip() for t in args.tasks.split(",")] if args.tasks else None
     entries = RUN.build_entries("model", models, ex, harness=args.harness, model_keys=keys)
     RUN.run_bench("model", entries, args.reps, args.par, args.out,
-                  task_names=tasks, timeout=args.timeout, ex=ex)
+                  task_names=tasks, timeout=args.timeout, ex=ex, task_set=args.task_set)
 
 
 def _report_cmd(args):
@@ -60,6 +60,9 @@ def _report_cmd(args):
 
 
 def _selftest_cmd(args):
+    if args.task_set and args.task_set != C.DEFAULT_TASK_SET:
+        from . import selftest_long
+        return selftest_long.run(args.task_set)
     td = C.tasks_dir()
     tasks = C.validate_tasks(td)
     expected = [f"t{i}" for i in range(1, 9)] + [f"h{i}" for i in range(1, 13)]
@@ -149,7 +152,7 @@ def _doctor_cmd(args):
     else:
         keys = sorted(models)
     missing = 0
-    for name in ("pi", "steak-pi", "claude-code", "dsh", "steak-dsh"):
+    for name in C.HARNESS_NAMES:
         a = H.get_adapter(name)
         runnable = [k for k in keys if name in models[k].get("harnesses", [])]
         try:
@@ -167,10 +170,16 @@ def _doctor_cmd(args):
 def _validate_cmd(args):
     models = C.load_models()
     print(f"ok models config: {C.models_path()} ({len(models)} models: {', '.join(sorted(models))})")
-    td = C.tasks_dir()
-    tasks = C.validate_tasks(td)
-    print(f"ok tasks: {td}/tasks.json ({len(tasks)} tasks), checks, fixture, generator, references")
-    print(f"ok task set hash: {C.task_set_hash(td)}")
+    for ts in ([args.task_set] if args.task_set else list(C.TASK_SETS)):
+        try:
+            td = C.tasks_dir(ts)
+        except C.PBError:
+            if args.task_set:
+                raise
+            continue  # an install without the optional long set still validates
+        tasks = C.validate_tasks(td)
+        print(f"ok tasks [{ts}]: {td}/tasks.json ({len(tasks)} tasks), checks, fixture, generator, references")
+        print(f"ok task set hash [{ts}]: {C.task_set_hash(td)}")
     return 0
 
 
@@ -187,7 +196,10 @@ def main(argv=None):
     p.add_argument("--par", type=int, default=2, help="parallel lanes per harness")
     p.add_argument("--out", required=True, help="results directory (rows.jsonl is appended)")
     p.add_argument("--tasks", help="comma-separated task ids (default: all)")
-    p.add_argument("--timeout", type=int, default=600, help="hard per-run timeout, seconds")
+    p.add_argument("--timeout", type=int, default=None,
+                   help="hard per-run timeout, seconds (default: the task set's budgets.json, else 600)")
+    p.add_argument("--task-set", default=C.DEFAULT_TASK_SET, choices=sorted(C.TASK_SETS),
+                   help="task set: short (default, 20 tasks) or long-v1 (11 long multi-step tasks)")
     p.add_argument("--variant", action="append", default=[], metavar="NAME=HARNESS:PATCH",
                    help="extra ablation arm: dsh-family harness plus this patch (repeatable)")
     p.set_defaults(fn=_harness_cmd)
@@ -199,7 +211,8 @@ def main(argv=None):
     p.add_argument("--par", type=int, default=2)
     p.add_argument("--out", required=True)
     p.add_argument("--tasks")
-    p.add_argument("--timeout", type=int, default=600)
+    p.add_argument("--timeout", type=int, default=None)
+    p.add_argument("--task-set", default=C.DEFAULT_TASK_SET, choices=sorted(C.TASK_SETS))
     p.set_defaults(fn=_model_cmd)
 
     p = sub.add_parser("report", help="summarize a results dir (both benches, legacy rows ok)")
@@ -210,6 +223,7 @@ def main(argv=None):
     p.set_defaults(fn=_report_cmd)
 
     p = sub.add_parser("selftest", help="every task: check fails untouched, passes after reference")
+    p.add_argument("--task-set", default=C.DEFAULT_TASK_SET, choices=sorted(C.TASK_SETS))
     p.set_defaults(fn=_selftest_cmd)
 
     p = sub.add_parser("doctor", help="harness executables, versions, runnable models; no model call")
@@ -217,6 +231,7 @@ def main(argv=None):
     p.set_defaults(fn=_doctor_cmd)
 
     p = sub.add_parser("validate", help="config and task files well formed")
+    p.add_argument("--task-set", choices=sorted(C.TASK_SETS), help="only this task set (default: every one present)")
     p.set_defaults(fn=_validate_cmd)
 
     args = ap.parse_args(argv)

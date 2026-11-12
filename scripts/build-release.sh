@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the download assets for the current commit into <out> (default dist/release):
-#   paretobench.tar.gz   the bundle (paretobench/, tasks/, configs/, docs/, pb, LICENSE), unpacked by install.sh and install.ps1
+#   paretobench.tar.gz   the bundle (paretobench/, tasks/, tasks-long/, configs/, docs/, pb, LICENSE), unpacked by install.sh and install.ps1
 #   install.sh, install.ps1   the installers
 #   SHA256SUMS    checksums of the three files above
 # Usage: scripts/build-release.sh [out-dir]   (run from a clean checkout of the release tag)
@@ -11,7 +11,7 @@ OUT="${1:-dist/release}"
 commit=$(git rev-parse HEAD)
 rm -rf "$OUT"; mkdir -p "$OUT"
 stage=$(mktemp -d "${TMPDIR:-/tmp}/paretobench-build.XXXXXX"); trap 'rm -rf "$stage"' EXIT
-git archive --format=tar HEAD paretobench tasks configs docs pb LICENSE | tar -x -C "$stage"
+git archive --format=tar HEAD paretobench tasks tasks-long configs docs pb LICENSE | tar -x -C "$stage"
 # Deterministic: sorted names, fixed owner and times, no gzip timestamp.
 ( cd "$stage" && find . -mindepth 1 | LC_ALL=C sort | sed 's|^\./||' > "$stage.list" )
 if tar --version 2>/dev/null | grep -qi gnu; then

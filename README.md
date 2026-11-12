@@ -88,6 +88,23 @@ compared in weighted tokens (input 1, cached input 0.1, cache write 1.25, output
 Steak Pi held 178 of 180 runs correct across three model families. These tasks are short (a run is 15 to 40
 seconds), so they separate entries on cost and time, not on which one can solve harder problems.
 
+## Task sets
+
+- `short` (default): the 20 small tasks behind every published result above. Unchanged.
+- `long-v1`: eleven long, multi-step tasks on a seeded, generated multi-package Python repository (about 9,400 lines,
+  7 packages, a green `unittest` suite, 2 MB of logs): multi-file feature, bug hunt, refactor, read-only scouting with
+  exact answers, mutation-judged test writing, compaction stress, hard codegen, a delegated wave, a batch of edits,
+  tool-loop recovery and a finish-guard trap. Hidden deterministic checkers run outside the agent's tree; read-only
+  tasks are judged by a full-tree SHA manifest. Select it with `--task-set long-v1` on `harness`, `model`, `selftest`
+  and `validate`; the hard timeout defaults to 30 minutes (60 for L6) from `tasks-long/budgets.json`. Status: built and
+  selftested, **not yet piloted**: no results are published for it. See
+  [docs/METHODOLOGY.md](docs/METHODOLOGY.md#the-long-task-set-long-v1) for the tasks, the admission rule and the gates.
+
+Two extra harness arms exist for the long-work questions: `steak-pi-lean` (the `steak-pi` arm with
+`--exclude-tools ultraterm_subagents,todo`) and `steak-dsh-long` (the `steak-dsh` arm plus the bundle's
+`long.patch.yml`; a bundle without it stops the run with a named error). List them under `harnesses` in a model entry
+to use them. Reports also print pass@k, pass^k, timeouts and the correct rate per repeat.
+
 ## Install
 
 One line, no checkout needed:
@@ -128,6 +145,10 @@ Manual route (from a checkout): `./pb ...` runs with no install, or `pip install
 ./pb validate                 # config and task files well formed
 ./pb doctor                   # harness executables, versions, runnable models (no model call)
 ./pb selftest                 # every task: check fails untouched, passes after the reference solution
+
+# Long set: eleven long multi-step tasks on a generated 9,400-line repository
+./pb selftest --task-set long-v1      # 11 references pass, untouched fixtures fail, deterministic fixture
+./pb harness --model qwen --harnesses steak-pi,pi --task-set long-v1 --reps 5 --par 2 --out runs/long1
 
 # Harness bench: one model, several harnesses
 ./pb harness --model qwen --harnesses pi,steak-pi,dsh,steak-dsh --reps 3 --par 2 --out runs/run1
@@ -179,7 +200,9 @@ task sets. It writes `summary.json` and `summary.md` into the dir.
 python3 -m unittest discover -s tests
 ```
 
-Covers the statistics (bootstrap determinism, Wilson, sign test, frontier, verdict rule), legacy row
+Covers the statistics (bootstrap determinism, Wilson, sign test, frontier, verdict rule, pass@k, timeouts, per-repeat
+correct), the long set (deterministic generator, every reference passes, every untouched fixture fails, a runner run
+through scripted agents), legacy row
 import, task-set mixing refusal, config validation, command construction for all five harnesses with
 fake executables (keys never in argv), resume, and stop cleanup with a fake slow harness.
 

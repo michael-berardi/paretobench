@@ -91,10 +91,17 @@ def build_entries(bench, models, ex, model=None, harness_names=None, harness=Non
     return entries
 
 
-def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=600, ex=None):
-    """Run the bench. entries come from build_entries. Rows go to <out_dir>/rows.jsonl."""
+def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None, ex=None, task_set=None):
+    """Run the bench. entries come from build_entries. Rows go to <out_dir>/rows.jsonl.
+    timeout: hard per-run seconds for every task; None means the task set's budgets.json, else 600."""
     ex = ex or C.resolve_executables()
-    td = C.tasks_dir()
+    td = C.tasks_dir(task_set)
+    budgets = C.task_budgets(td)
+
+    def budget(task):
+        if timeout is not None:
+            return timeout
+        return budgets.get(task, budgets.get("default", C.DEFAULT_TIMEOUT))
     tasks = C.validate_tasks(td)
     tset = C.task_set_hash(td)
     names = list(task_names) if task_names else list(tasks)
@@ -155,13 +162,19 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=600, 
     spec.loader.exec_module(mod)
     prepare = mod.prepare
     checker = os.path.join(td, "checks", "check.py")
+    # a task set whose generator takes (dest, task) builds a per-task fixture (the long set does)
+    import inspect
+    per_task_fixture = len(inspect.signature(prepare).parameters) >= 2
 
-    def fresh(entry_name, slot):
+    def fresh(entry_name, slot, task=None):
         if stopping.is_set():
             raise H.RunFail("runner stopped", "", "")
         d = os.path.join(work, "work", f"{entry_name}-{slot}")
         shutil.rmtree(d, ignore_errors=True)
-        prepare(d)
+        if per_task_fixture:
+            prepare(d, task)
+        else:
+            prepare(d)
         return d
 
     # --- generated dsh model patch per model (two rows) ---
@@ -227,7 +240,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=600, 
             last_log[(entry_name, slot)] = scrub(out or "") + (
                 "\n#stderr\n" + scrub(err or "")[-4000:] if err else "")
 
-    def run_entry(e, slot, cwd, prompt):
+    def run_entry(e, slot, cwd, prompt, tmo):
         a = e["adapter"]
         lane = a.setup_lane(ex, e["mcfg"], work, slot, e["name"])
         cmd, env_extra = a.build_command(ex, e["mcfg"], prompt, lane,
@@ -237,7 +250,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=600, 
         if e["key_env"]:
             env[e["key_env"]] = e["key_val"]
         try:
-            rc, out, err = child(cmd, cwd, env, timeout)
+            rc, out, err = child(cmd, cwd, env, tmo)
         finally:
             a.after_run(lane)
         keep_log(e["name"], slot, out, err)
@@ -246,14 +259,14 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=600, 
     def rate_limited(blob):
         return bool(re.search(r"(?<!\d)429(?!\d)", blob)) or "RATE_LIMIT" in blob
 
-    def invoke(e, slot, prompt):
+    def invoke(e, slot, prompt, task=None, tmo=C.DEFAULT_TIMEOUT):
         """One attempt per fresh fixture, with rate-limit retries (30 s, then 90 s; at most 2).
         Returns (u, text, err, retries, cwd)."""
         retries = 0
         while True:
-            cwd = fresh(e["name"], slot)
+            cwd = fresh(e["name"], slot, task)
             try:
-                u, text = run_entry(e, slot, cwd, prompt)
+                u, text = run_entry(e, slot, cwd, prompt, tmo)
                 return u, text, "", retries, cwd
             except Exception as err:
                 blob = scrub(str(err) + getattr(err, "out", "")[-4000:] + getattr(err, "err", "")[-4000:])
@@ -290,12 +303,13 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=600, 
         return out_path
 
     lock = threading.Lock()
+    chk_timeout = 120 if (task_set or C.DEFAULT_TASK_SET) == C.DEFAULT_TASK_SET else 900  # long checkers run suites and mutants
 
     def one(rep, task, e, slot):
         if stopping.is_set():
             return
         t0 = time.time()
-        u, text, err, retries, d = invoke(e, slot, tasks[task])
+        u, text, err, retries, d = invoke(e, slot, tasks[task], task, budget(task))
         if stopping.is_set():
             return  # a run cut short by a stop is not a result: it is run again on resume
         with open(os.path.join(d, "ans.txt"), "w") as f:
@@ -307,7 +321,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=600, 
         chk_err, chk = "", False
         try:
             c = subprocess.run([sys.executable, checker, task, "ans.txt"], cwd=d,
-                               capture_output=True, text=True, timeout=120)
+                               capture_output=True, text=True, timeout=chk_timeout)
             chk = c.stdout.strip() == "true"
             if not chk:
                 chk_err = scrub(c.stderr.strip())[:200]

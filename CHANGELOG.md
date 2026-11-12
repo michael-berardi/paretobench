@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+- New task set `long-v1` in `tasks-long/`: eleven long, multi-step tasks (feature, bug hunt, refactor, read-only
+  scouting, mutation-judged test writing, compaction stress, hard codegen, delegated wave, edit batch, tool-loop
+  recovery, finish-guard trap) on a seeded generated repository (about 9,400 lines, 7 packages, a 2 MB log), with
+  hidden deterministic checkers that run outside the agent's tree, a full-tree SHA comparison, scripted reference
+  solutions with recorded tool-step counts and a per-task wall budget. Select with `--task-set long-v1`; the default
+  short set and its hash are unchanged. The set is unpiloted: see the admission rule and gates in
+  `docs/METHODOLOGY.md`.
+- `pb selftest --task-set long-v1` covers the long set: every reference passes, every untouched fixture fails, obvious
+  wrong solutions fail, step counts match `steps.json`, two generations with one seed are byte-identical.
+- New harness arms `steak-pi-lean` (`steak-pi` with `--exclude-tools ultraterm_subagents,todo`) and `steak-dsh-long`
+  (`steak-dsh` plus the bundle's `long.patch.yml`, named error when the bundle has none).
+- Reports and summaries add pass@k, pass^k, timeouts and the correct rate per repeat (`stats.pass_at_k`,
+  `stats.timeouts`, `stats.per_rep_correct`).
+- `--timeout` now defaults to the task set's `budgets.json` (600 s for the short set, as before).
+
 ## 0.2.3 - 2026-11-11
 
 - Windows installer fix. `install.ps1` 0.2.2 read the user PATH unexpanded but wrote it back as a plain string, so a
