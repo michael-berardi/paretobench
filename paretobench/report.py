@@ -161,6 +161,16 @@ def _fmt(x, nd=2):
     return f"{x:.{nd}f}"
 
 
+def _reliability(s):
+    """One line: pass@k, pass^k, timeouts and the correct rate per repeat (older summaries may lack them)."""
+    pk = s.get("pass_at_k")
+    if not pk:
+        return None
+    reps = " ".join(f"r{rep}={_fmt(v)}" for rep, v in (s.get("per_rep_correct") or {}).items())
+    return (f"pass@{pk['k']} {_fmt(pk['pass_any'])}  pass^{pk['k']} {_fmt(pk['pass_all'])}  "
+            f"timeouts {s.get('timeouts', 0)}  correct per repeat: {reps or '-'}")
+
+
 def render(summary, md=False):
     """Text or GitHub markdown rendering of a summary."""
     out = []
@@ -211,6 +221,21 @@ def render(summary, md=False):
                            + (f"list price ${_fmt(s.get('dollars'), 4)}  " if label != 'cost $' else "") +
                            f"median {_fmt(s['median_sec'], 1)}s  p90 {_fmt(s['p90_sec'], 1)}s  "
                            f"median turns {_fmt(s['median_turns'], 1)}{flags}")
+                rel = _reliability(s)
+                if rel:
+                    out.append(f"{'':14}{rel}")
+        if md and any(ms["entries"][a].get("pass_at_k") for a in entries):
+            out.append("")
+            out.append(f"| {entry_word} | pass@k | pass^k | timeouts | correct per repeat |")
+            out.append("|---|---|---|---|---|")
+            for a in entries:
+                s = ms["entries"][a]
+                pk = s.get("pass_at_k")
+                if not pk:
+                    continue
+                reps = " ".join(f"r{rep}={_fmt(v)}" for rep, v in (s.get("per_rep_correct") or {}).items())
+                out.append(f"| {a} | {_fmt(pk['pass_any'])} (k={pk['k']}) | {_fmt(pk['pass_all'])} | "
+                           f"{s.get('timeouts', 0)} | {reps or '-'} |")
         for a, e in ms["vs_baseline"].items():
             ca, cb = e["correct"]
             p = e["sign_test_p"]

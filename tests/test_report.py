@@ -132,3 +132,31 @@ class TestModelBench(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReliabilityPrinted(unittest.TestCase):
+    def rows(self):
+        out = []
+        for a in ("steak-pi", "dsh"):
+            for t in ("L1", "L2"):
+                for rep in range(2):
+                    r = legacy_row(a, t, rep, ok=(a == "steak-pi" or rep == 0))
+                    r["err"] = "RunFail('timeout after 5s')" if (a == "dsh" and rep == 1 and t == "L2") else ""
+                    out.append(r)
+        return out
+
+    def test_text_and_markdown_print_pass_at_k_timeouts_and_repeats(self):
+        s = R.summarize(self.rows(), MODELS)
+        e = s["groups"]["deepseek"]["entries"]
+        self.assertEqual(e["dsh"]["pass_at_k"], {"k": 2, "pass_any": 1.0, "pass_all": 0.0})
+        self.assertEqual(e["dsh"]["timeouts"], 1)
+        self.assertEqual(e["dsh"]["per_rep_correct"], {0: 1.0, 1: 0.0})
+        text = R.render(s)
+        self.assertIn("pass@2 1.00  pass^2 0.00  timeouts 1  correct per repeat: r0=1.00 r1=0.00", text)
+        md = R.render(s, md=True)
+        self.assertIn("| harness | pass@k | pass^k | timeouts | correct per repeat |", md)
+        self.assertIn("| dsh | 1.00 (k=2) | 0.00 | 1 | r0=1.00 r1=0.00 |", md)
+
+    def test_summary_json_still_clean(self):
+        s = R.summarize(self.rows(), MODELS)
+        json.dumps(R.ST.clean(s))

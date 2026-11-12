@@ -10,7 +10,7 @@ import json
 import os
 import shutil
 
-HARNESS_NAMES = ("pi", "steak-pi", "claude-code", "dsh", "steak-dsh")
+HARNESS_NAMES = ("pi", "steak-pi", "claude-code", "dsh", "steak-dsh", "steak-pi-lean", "steak-dsh-long")
 LEGACY_TASK_SET = "legacy-steak-dsh-bench"
 TOKEN_KEYS = ("i", "cr", "cw", "o")
 # Used when every rate for a model is 0 (flat plan): weighted tokens instead of dollars.
@@ -27,11 +27,42 @@ class PBError(Exception):
         self.name = name
 
 
-def tasks_dir():
-    d = os.environ.get("PARETOBENCH_TASKS") or os.path.join(REPO_ROOT, "tasks")
+# Task sets selectable with --task-set. The default (short) set is never changed by adding another.
+DEFAULT_TASK_SET = "short"
+TASK_SETS = {"short": "tasks", "long-v1": "tasks-long"}
+# Hard per-run timeout when --timeout is not given: the short set keeps 600 s; long sets read budgets.json.
+DEFAULT_TIMEOUT = 600
+
+
+def tasks_dir(task_set=None):
+    """Directory of a task set. The short set is $PARETOBENCH_TASKS or <repo>/tasks. Another set is
+    $PARETOBENCH_TASKS_<NAME> (name upper-cased, '-' as '_') or the sibling folder of the short set."""
+    task_set = task_set or DEFAULT_TASK_SET
+    if task_set not in TASK_SETS:
+        raise PBError("unknown-task-set", f"'{task_set}' (task sets: {', '.join(TASK_SETS)})")
+    short = os.environ.get("PARETOBENCH_TASKS") or os.path.join(REPO_ROOT, TASK_SETS[DEFAULT_TASK_SET])
+    if task_set == DEFAULT_TASK_SET:
+        d, hint = short, "PARETOBENCH_TASKS"
+    else:
+        hint = "PARETOBENCH_TASKS_" + task_set.upper().replace("-", "_")
+        d = os.environ.get(hint) or os.path.join(os.path.dirname(os.path.abspath(short)), TASK_SETS[task_set])
     if not os.path.isdir(d):
-        raise PBError("tasks-dir-missing", f"{d} (set PARETOBENCH_TASKS to the tasks directory)")
+        raise PBError("tasks-dir-missing", f"{d} (set {hint} to the tasks directory)")
     return d
+
+
+def task_budgets(d):
+    """Per-task hard timeouts in seconds from <tasks dir>/budgets.json ({"default": s, "L6": s}); {} if none."""
+    p = os.path.join(d, "budgets.json")
+    if not os.path.isfile(p):
+        return {}
+    try:
+        with open(p) as f:
+            b = json.load(f)
+        assert isinstance(b, dict) and all(isinstance(v, int) and v > 0 for v in b.values())
+    except Exception:
+        raise PBError("budgets-file-invalid", f"{p}: must be an object of task id or 'default' -> seconds")
+    return b
 
 
 def config_dir():
@@ -102,10 +133,10 @@ def validate_models(models):
               "models-config-invalid",
               f"{w}: harnesses must be a non-empty list of {', '.join(HARNESS_NAMES)} without duplicates")
         for h in hs:
-            if h in ("pi", "steak-pi"):
+            if h in ("pi", "steak-pi", "steak-pi-lean"):
                 _need(isinstance(m.get("pi"), list) and all(isinstance(a, str) for a in m["pi"]),
                       "models-config-invalid", f"{w}: harness '{h}' needs a 'pi' list of model args")
-            elif h in ("dsh", "steak-dsh"):
+            elif h in ("dsh", "steak-dsh", "steak-dsh-long"):
                 d = m.get("dsh")
                 _need(isinstance(d, dict) and isinstance(d.get("provider"), str)
                       and isinstance(d.get("model"), str) and isinstance(d.get("route"), dict),
@@ -150,6 +181,10 @@ def task_set_hash(d=None):
     task sets are never mixed. Stable across machines (relative paths, sorted)."""
     d = d or tasks_dir()
     files = ["tasks.json", "gen_fixture.py"]
+    # a task set may keep generator helpers (gen_*.py) and a budgets.json beside the generator
+    for n in sorted(os.listdir(d)):
+        if (n.startswith("gen_") and n.endswith(".py") and n != "gen_fixture.py") or n == "budgets.json":
+            files.append(n)
     for sub in ("checks", "fixture"):
         for root, dirs, names in os.walk(os.path.join(d, sub)):
             dirs[:] = sorted(x for x in dirs if x != "__pycache__")

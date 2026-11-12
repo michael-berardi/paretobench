@@ -80,6 +80,31 @@ def _mfn(rates):
     return lambda r: C.metric(r, rates)
 
 
+def pass_at_k(rows):
+    """Share of tasks with at least one correct repeat (pass@k) and with every repeat correct (pass^k)."""
+    by = {}
+    for r in rows:
+        by.setdefault(r["task"], []).append(bool(r.get("ok")))
+    n = len(by) or 1
+    return {"k": max((len(v) for v in by.values()), default=0),
+            "pass_any": sum(any(v) for v in by.values()) / n,
+            "pass_all": sum(all(v) for v in by.values()) / n}
+
+
+def timeouts(rows):
+    """Runs that ended at the hard timeout. They stay in the sample as incorrect; this only names them."""
+    # the runner stores repr(error), so the marker can sit inside RunFail('timeout after 600s')
+    return sum(1 for r in rows if "timeout after" in str(r.get("err") or ""))
+
+
+def per_rep_correct(rows):
+    """Correct rate per repeat, to show drift between repeats (provider or cache changes during a run)."""
+    by = {}
+    for r in rows:
+        by.setdefault(r["rep"], []).append(bool(r.get("ok")))
+    return {rep: sum(v) / len(v) for rep, v in sorted(by.items())}
+
+
 def entry_summary(rows, rates):
     """Per-entry aggregates. Cost from the one rate table (weighted tokens if all zero)."""
     mf = _mfn(rates)
@@ -100,6 +125,9 @@ def entry_summary(rows, rates):
         "median_sec": (S.median(secs) if secs else None),
         "p90_sec": p90(secs),
         "median_turns": (S.median([r.get("turns") or 0 for r in rows]) if rows else None),
+        "pass_at_k": pass_at_k(rows),
+        "timeouts": timeouts(rows),
+        "per_rep_correct": per_rep_correct(rows),
     }
 
 

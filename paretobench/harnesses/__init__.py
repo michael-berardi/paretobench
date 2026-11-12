@@ -16,7 +16,8 @@ import importlib
 # Old arm names in legacy steak-dsh bench rows map to canonical harness names.
 ARM_MAP = {"dsh": "dsh", "sdsh": "steak-dsh", "sp": "steak-pi", "cc": "claude-code", "pi": "pi"}
 _MODULES = {"pi": "pi", "steak-pi": "steak_pi", "claude-code": "claude_code",
-            "dsh": "dsh", "steak-dsh": "steak_dsh"}
+            "dsh": "dsh", "steak-dsh": "steak_dsh",
+            "steak-pi-lean": "steak_pi_lean", "steak-dsh-long": "steak_dsh_long"}
 
 
 class RunFail(Exception):

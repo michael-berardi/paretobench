@@ -149,3 +149,45 @@ class TestEntrySummary(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestReliability(unittest.TestCase):
+    def rows(self):
+        # tasks a, b, c with 3 repeats: a all correct, b one of three, c none; one timeout on c
+        spec = {("a", 0): True, ("a", 1): True, ("a", 2): True,
+                ("b", 0): False, ("b", 1): True, ("b", 2): False,
+                ("c", 0): False, ("c", 1): False, ("c", 2): False}
+        out = []
+        for (t, rep), ok in spec.items():
+            r = row(t, rep, ok, 10, 1, 1.0)
+            r["err"] = "timeout after 600s" if (t, rep) == ("c", 1) else ""
+            out.append(r)
+        return out
+
+    def test_pass_at_k(self):
+        p = ST.pass_at_k(self.rows())
+        self.assertEqual(p["k"], 3)
+        self.assertAlmostEqual(p["pass_any"], 2 / 3)
+        self.assertAlmostEqual(p["pass_all"], 1 / 3)
+
+    def test_pass_at_k_empty(self):
+        self.assertEqual(ST.pass_at_k([]), {"k": 0, "pass_any": 0.0, "pass_all": 0.0})
+
+    def test_timeouts(self):
+        self.assertEqual(ST.timeouts(self.rows()), 1)
+        self.assertEqual(ST.timeouts([dict(row("a", 0, True, 1, 1, 1.0))]), 0)
+        wrapped = dict(row("a", 0, False, 1, 1, 1.0), err="RunFail('timeout after 30s')")
+        self.assertEqual(ST.timeouts([wrapped]), 1)  # the runner stores repr(err)
+
+    def test_per_rep_correct(self):
+        p = ST.per_rep_correct(self.rows())
+        self.assertEqual(list(p), [0, 1, 2])
+        self.assertAlmostEqual(p[0], 1 / 3)
+        self.assertAlmostEqual(p[1], 2 / 3)
+        self.assertAlmostEqual(p[2], 1 / 3)
+
+    def test_entry_summary_carries_all_three(self):
+        s = ST.entry_summary(self.rows(), {"i": 1, "cr": 0, "cw": 0, "o": 0})
+        self.assertEqual(s["pass_at_k"]["k"], 3)
+        self.assertEqual(s["timeouts"], 1)
+        self.assertEqual(sorted(s["per_rep_correct"]), [0, 1, 2])

@@ -125,6 +125,61 @@ class TestCommandConstruction(unittest.TestCase):
                                 "--approval-policy", "never", PROMPT])
         self.assert_no_secret(argv, env)
 
+    def test_steak_pi_lean(self):
+        a = H.get_adapter("steak-pi-lean")
+        a.validate(self.m, self.ex)
+        lane = self.lane(a, "steak-pi-lean")
+        argv, env = a.build_command(self.ex, self.m, PROMPT, lane)
+        base_argv, base_env = H.get_adapter("steak-pi").build_command(
+            self.ex, self.m, PROMPT, self.lane(H.get_adapter("steak-pi"), "steak-pi"))
+        self.assertEqual(argv[:-3], base_argv[:-1])  # identical to steak-pi up to the added flags
+        self.assertEqual(argv[-3:], ["--exclude-tools", "ultraterm_subagents,todo", PROMPT])  # prompt last
+        self.assertNotIn("-ne", argv)
+        self.assertEqual(set(env), set(base_env))
+        self.assert_no_secret(argv, env)
+        with open(os.path.join(lane["agent_dir"], "settings.json")) as f:
+            self.assertEqual(json.load(f), {"quietStartup": True, "packages": [self.ex["steak_pi_package"]]})
+        self.assertTrue(a.version(self.ex).endswith(" lean"))
+
+    def test_steak_dsh_long(self):
+        a = H.get_adapter("steak-dsh-long")
+        long_patch = os.path.join(os.path.dirname(self.ex["steak_dsh_patch"]), "long.patch.yml")
+        with self.assertRaises(C.PBError) as cm:  # a bundle without long.patch.yml: named error
+            a.validate(self.m, self.ex)
+        self.assertEqual(cm.exception.name, "steak-dsh-long-patch-missing")
+        self.assertIn("long.patch.yml", str(cm.exception))
+        with open(long_patch, "w") as f:
+            f.write("- id: y\n")
+        a.validate(self.m, self.ex)
+        lane = self.lane(a, "steak-dsh-long")
+        argv, env = a.build_command(self.ex, self.m, PROMPT, lane, model_patch="/tmp/model.yml",
+                                    extra_patches=("/tmp/variant.yml",))
+        self.assertEqual(argv, [self.ex["dsh_bin"], "headless",
+                                "--patch", "/tmp/model.yml",
+                                "--patch", self.ex["steak_dsh_patch"],
+                                "--patch", long_patch,
+                                "--patch", "/tmp/variant.yml",
+                                "--json", "--permission-mode", "workspace-write",
+                                "--approval-policy", "never", PROMPT])
+        self.assertEqual(env["DSH_HOME"], lane["home"])
+        self.assertNotIn("TEST_API_KEY", env)
+        self.assert_no_secret(argv, env)
+
+    def test_steak_dsh_long_needs_the_base_patch_first(self):
+        ex = dict(self.ex, steak_dsh_patch="")
+        with self.assertRaises(C.PBError) as cm:
+            H.get_adapter("steak-dsh-long").validate(self.m, ex)
+        self.assertEqual(cm.exception.name, "steak-dsh-patch-missing")
+
+    def test_new_arms_registered_and_in_config_names(self):
+        for n in ("steak-pi-lean", "steak-dsh-long"):
+            self.assertIn(n, H._MODULES)
+            self.assertIn(n, C.HARNESS_NAMES)
+            self.assertEqual(H.get_adapter(n).name, n)
+        self.assertEqual(H.get_adapter("steak-pi-lean").family, "pi")
+        self.assertEqual(H.get_adapter("steak-dsh-long").family, "dsh")
+        C.validate_models({"m": mcfg()})  # a model may list the new arms
+
     def test_claude_code(self):
         a = H.get_adapter("claude-code")
         a.validate(self.m, self.ex)
