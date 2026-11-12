@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.2 - 2026-11-11
+
+- Installer fixes. On Windows the `paretobench` and `pb` launchers baked the absolute install path in ASCII, so a profile
+  folder with accented characters (for example `C:\Users\José`) produced a launcher that pointed nowhere and the
+  install failed after the user PATH had been changed. The launchers now locate the app relative to themselves, and
+  use the OEM code page when `PARETOBENCH_BIN_DIR` puts them elsewhere. They also run in `setlocal`, so repeated runs
+  no longer grow the session PYTHONPATH.
+- Both installers (`install.sh`, `install.ps1`) no longer overwrite a `pb` or `paretobench` in the bin folder that they
+  did not write; they say so and leave it. Launchers carry a marker line, and launchers from 0.2.0 and 0.2.1 are
+  still recognised as ours and upgraded.
+- `install.ps1` unpacks directly into a staging folder inside the install home (no cross-drive move out of %TEMP%),
+  removes the staging folder and restores the previous release if an install is interrupted, reads the user PATH
+  without expanding `%VAR%` entries, prefers the system `tar.exe`, and enables TLS 1.2 on Windows PowerShell.
+  `install.sh` cleans its staging folder on every exit, restores the previous release if interrupted mid-swap, and
+  only restricts the install home to its owner when it created that folder.
+- New `tests/test_installers.py` covers these.
+
 ## 0.2.1 - 2026-11-11
 
 - README results lead with the highlights: Steak Pi and Steak DSH against stock DeepSeek Harness on

@@ -164,6 +164,22 @@ $failed = $false
 try { & /rel/release/install.ps1 } catch { $failed = $true; if ("$_" -notmatch 'checksum mismatch') { throw } }
 if (-not $failed) { throw 'corrupted archive was accepted' }
 if (Test-Path '/tmp/h2/app') { throw 'corrupted install left files behind' }
+# A pb the installer did not write is left alone; our own shim carries the marker; no staging folder is left.
+$env:PARETOBENCH_HOME = '/tmp/h3'; $env:PARETOBENCH_BIN_DIR = '/tmp/h3/bin'
+$env:PARETOBENCH_RELEASE_BASE = "$env:TEST_BASE/release"
+New-Item -ItemType Directory -Path '/tmp/h3/bin' -Force | Out-Null
+Set-Content -Path '/tmp/h3/bin/pb' -Value "#!/bin/sh`necho my own pb"
+$out = (& /rel/release/install.ps1 6>&1 | Out-String)
+if ((Get-Content '/tmp/h3/bin/pb' -Raw) -notmatch 'my own pb') { throw 'a foreign pb was overwritten' }
+if ($out -notmatch 'Left /tmp/h3/bin/pb alone') { throw "foreign pb not reported: $out" }
+if ((Get-Content '/tmp/h3/bin/paretobench' -Raw) -notmatch 'ParetoBench launcher, written by install') { throw 'shim has no marker' }
+if (Get-ChildItem '/tmp/h3' -Force | Where-Object { $_.Name -like '.app.new-*' }) { throw 'staging folder left behind' }
+# A relative PARETOBENCH_HOME must not make the upgrade delete the release it just installed.
+Set-Location /tmp
+$env:PARETOBENCH_HOME = 'h4rel/../h4'; $env:PARETOBENCH_BIN_DIR = 'h4/bin'
+& /rel/release/install.ps1
+& /rel/release/install.ps1
+if (-not (Test-Path '/tmp/h4/app/paretobench/cli.py')) { throw 'relative home: release missing after upgrade' }
 Write-Host 'PWSH-OK'
 PWSH
   docker run --rm --name paretobench-pwsh --add-host=host.docker.internal:host-gateway \

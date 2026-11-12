@@ -45,7 +45,15 @@ done
 [ -n "$PYTHON" ] || die "needs Python 3.11 or newer and none was found; install it with: $PY_HINT"
 
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/paretobench-install.XXXXXX") || die "cannot create a temporary folder"
-trap 'rm -rf "$TMP"' EXIT
+STAGE=""; SWAPPING=""
+# On any exit: drop the temp and staging folders, and if the swap died after app moved aside, put the old release back.
+cleanup() {
+  rm -rf "$TMP"
+  [ -z "${CHECK_TMP:-}" ] || rm -f "$CHECK_TMP"
+  [ -z "$STAGE" ] || rm -rf "$STAGE"
+  if [ -n "$SWAPPING" ] && [ ! -d "$APP" ] && [ -d "$HOME_DIR/app.old" ]; then mv "$HOME_DIR/app.old" "$APP" 2>/dev/null || true; fi
+}
+trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -67,22 +75,25 @@ VERSION=$(sed -n 's/^__version__ = "\([^"]*\)".*/\1/p' "$TMP/src/paretobench/__i
 [ -n "$VERSION" ] || die "cannot read the release version"
 
 # Stage inside PARETOBENCH_HOME so the final move is a same-filesystem rename; nothing is half-installed.
-mkdir -p "$HOME_DIR" "$BIN_DIR"
-chmod 700 "$HOME_DIR" 2>/dev/null || true
+if [ ! -d "$HOME_DIR" ]; then mkdir -p "$HOME_DIR"; chmod 700 "$HOME_DIR" 2>/dev/null || true; fi
+mkdir -p "$BIN_DIR"
 STAGE="$HOME_DIR/.app.new.$$"
 rm -rf "$STAGE"
 mv "$TMP/src" "$STAGE"
 got=$(PYTHONPATH="$STAGE" PARETOBENCH_TASKS="$STAGE/tasks" "$PYTHON" -m paretobench.cli --version 2>&1) \
-  || { rm -rf "$STAGE"; die "the new copy does not start: $got"; }
+  || { die "the new copy does not start: $got"; }
 case "$got" in
   "paretobench $VERSION") ;;
-  *) rm -rf "$STAGE"; die "the new copy reports '$got', not paretobench $VERSION; nothing was changed" ;;
+  *) die "the new copy reports '$got', not paretobench $VERSION; nothing was changed" ;;
 esac
 say "Installing ParetoBench $VERSION..."
 rm -rf "$HOME_DIR/app.old"
+SWAPPING=1
 if [ -d "$APP" ]; then mv "$APP" "$HOME_DIR/app.old"; fi
-mv "$STAGE" "$APP" || { [ ! -d "$HOME_DIR/app.old" ] || mv "$HOME_DIR/app.old" "$APP"; die "cannot move the release into $APP"; }
+mv "$STAGE" "$APP" || die "cannot move the release into $APP"
+STAGE=""
 rm -rf "$HOME_DIR/app.old"
+SWAPPING=""
 
 # The models config lives outside the install so upgrades keep it. Seed the documented example when absent.
 MODELS="${PARETOBENCH_CONFIG:-$HOME/.config/paretobench/models.json}"
@@ -93,7 +104,15 @@ if [ ! -f "$MODELS" ]; then
 fi
 
 # Shims: run the installed copy with the right PYTHONPATH and task set; a user-set PARETOBENCH_TASKS wins.
+# A file in the bin folder that this installer did not write is never overwritten: it is ours only if it
+# carries the marker line (or is the unmarked shape an earlier release wrote).
+LAUNCHER=""
 for name in paretobench pb; do
+  if [ -e "$BIN_DIR/$name" ] && ! grep -q 'ParetoBench launcher, written by install\|paretobench\.cli' "$BIN_DIR/$name" 2>/dev/null; then
+    say "Left $BIN_DIR/$name alone: it was not written by this installer. Use paretobench instead."
+    continue
+  fi
+  [ "$name" != paretobench ] || LAUNCHER="$BIN_DIR/paretobench"
   cat > "$BIN_DIR/$name.tmp.$$" <<SHIM
 #!/bin/sh
 # ParetoBench launcher, written by install.sh. Re-run the installer to upgrade.
@@ -107,9 +126,14 @@ SHIM
 done
 
 say "ParetoBench $VERSION installed ($BIN_DIR/paretobench, $BIN_DIR/pb)."
-"$BIN_DIR/paretobench" validate || die "paretobench validate failed after install (see the error above)"
+if [ -z "$LAUNCHER" ]; then
+  LAUNCHER="$BIN_DIR/.paretobench-check.$$"
+  printf '#!/bin/sh\nPARETOBENCH_TASKS="%s" PYTHONPATH="%s" exec "%s" -m paretobench.cli "$@"\n' "$APP/tasks" "$APP" "$PYTHON" > "$LAUNCHER"
+  chmod 755 "$LAUNCHER"; CHECK_TMP="$LAUNCHER"
+fi
+"$LAUNCHER" validate || die "paretobench validate failed after install (see the error above)"
 say "Checking harness executables (paretobench doctor):"
-if "$BIN_DIR/paretobench" doctor; then :
+if "$LAUNCHER" doctor; then :
 else say "doctor: some harness executables are missing; that is fine for installing. Add them before running a bench."; fi
 case ":$PATH:" in *":$BIN_DIR:"*) ;; *) say "Add $BIN_DIR to your PATH:  export PATH=\"$BIN_DIR:\$PATH\"" ;; esac
 say "Next: paretobench selftest"

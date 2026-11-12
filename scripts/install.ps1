@@ -19,6 +19,8 @@ $homeDir = if ($env:PARETOBENCH_HOME) { $env:PARETOBENCH_HOME }
 $binDir = if ($env:PARETOBENCH_BIN_DIR) { $env:PARETOBENCH_BIN_DIR }
           elseif ($isWin) { Join-Path $homeDir 'bin' }
           else { Join-Path $HOME '.local/bin' }
+$homeDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($homeDir)
+$binDir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($binDir)
 $appDir = Join-Path $homeDir 'app'
 
 # Python 3.11+ on this machine; there are no dependencies, so the system Python is used directly.
@@ -35,14 +37,27 @@ foreach ($cand in $pyCandidates) {
     } catch { continue }
 }
 if (-not $pyExe) { throw "ParetoBench needs Python 3.11 or newer and none was found; install it with: $pyHint" }
-if (-not (Get-Command tar -ErrorAction SilentlyContinue)) { throw 'ParetoBench needs tar (built in on Windows 10+ and Linux).' }
+# On Windows use the system bsdtar: a GNU tar earlier on PATH (Git for Windows) misreads drive-letter paths.
+$tarExe = 'tar'
+if ($isWin -and $env:SystemRoot -and (Test-Path "$env:SystemRoot\System32\tar.exe")) { $tarExe = "$env:SystemRoot\System32\tar.exe" }
+if (-not (Get-Command $tarExe -ErrorAction SilentlyContinue)) { throw 'ParetoBench needs tar (built in on Windows 10+ and Linux).' }
 
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ('paretobench-install-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tmp | Out-Null
 $savedPythonPath = $env:PYTHONPATH; $savedTasks = $env:PARETOBENCH_TASKS
+$stage = $null; $old = Join-Path $homeDir 'app.old'
+$marker = 'ParetoBench launcher, written by install'
+# True when $path may be written: absent, or one of our own shims (marker, or the unmarked shape 0.2.0 wrote).
+function Test-OurShim($path) {
+    if (-not (Test-Path -LiteralPath $path)) { return $true }
+    $text = Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue
+    if (-not $text) { return $false }
+    return ($text.Contains($marker) -or ($text.Contains('paretobench.cli') -and $text.Contains('PARETOBENCH_TASKS')))
+}
 try {
     if ($PSVersionTable.PSEdition -eq 'Desktop') {
-        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+        $ProgressPreference = 'SilentlyContinue'
     }
     Write-Host 'Downloading ParetoBench...'
     $archive = Join-Path $tmp 'paretobench.tar.gz'
@@ -55,33 +70,35 @@ try {
     $got = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLower()
     if ($got -ne $want) { throw 'checksum mismatch for paretobench.tar.gz; nothing was installed.' }
 
-    $src = Join-Path $tmp 'src'
-    New-Item -ItemType Directory -Path $src | Out-Null
-    & tar -xzf $archive -C $src
-    if ($LASTEXITCODE -ne 0) { throw 'cannot unpack the download (tar failed).' }
-    if (-not (Test-Path (Join-Path $src 'paretobench/cli.py')) -or -not (Test-Path (Join-Path $src 'tasks/tasks.json'))) {
-        throw 'the download is not a ParetoBench release.'
-    }
-    $verLine = Get-Content (Join-Path $src 'paretobench/__init__.py') | Where-Object { $_ -like '__version__ = *' } | Select-Object -First 1
-    if (-not $verLine -or $verLine -notmatch '^__version__ = "([^"]+)"') { throw 'cannot read the release version.' }
-    $version = $Matches[1]
-
-    # Stage inside PARETOBENCH_HOME so the final move is a same-volume rename; nothing is half-installed.
+    # Unpack straight into a staging folder inside PARETOBENCH_HOME: the final move is a same-volume rename
+    # (Move-Item from %TEMP% fails across drives on Windows PowerShell 5.1) and nothing is half-installed.
     New-Item -ItemType Directory -Path $homeDir -Force | Out-Null
     New-Item -ItemType Directory -Path $binDir -Force | Out-Null
     $stage = Join-Path $homeDir ('.app.new-' + [guid]::NewGuid().ToString('N'))
-    Move-Item $src $stage
+    New-Item -ItemType Directory -Path $stage | Out-Null
+    & $tarExe -xzf $archive -C $stage
+    if ($LASTEXITCODE -ne 0) { throw 'cannot unpack the download (tar failed).' }
+    if (-not (Test-Path (Join-Path $stage 'paretobench/cli.py')) -or -not (Test-Path (Join-Path $stage 'tasks/tasks.json'))) {
+        throw 'the download is not a ParetoBench release.'
+    }
+    $verLine = Get-Content (Join-Path $stage 'paretobench/__init__.py') | Where-Object { $_ -like '__version__ = *' } | Select-Object -First 1
+    if (-not $verLine -or $verLine -notmatch '^__version__ = "([^"]+)"') { throw 'cannot read the release version.' }
+    $version = $Matches[1]
+
     $env:PYTHONPATH = $stage; $env:PARETOBENCH_TASKS = Join-Path $stage 'tasks'
+    # Windows PowerShell 5.1 turns the first stderr line of a native call into a terminating error under 'Stop'.
+    $ErrorActionPreference = 'Continue'
     $got = (& $pyExe @pyArgs -m paretobench.cli --version 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -ne 0 -or $got -ne "paretobench $version") {
-        Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
+    $rc = $LASTEXITCODE
+    $ErrorActionPreference = 'Stop'
+    if ($rc -ne 0 -or $got -ne "paretobench $version") {
         throw "the new copy reports '$got', not paretobench $version; nothing was changed."
     }
     Write-Host "Installing ParetoBench $version..."
-    $old = Join-Path $homeDir 'app.old'
     if (Test-Path $old) { Remove-Item -Recurse -Force $old }
     if (Test-Path $appDir) { Move-Item $appDir $old }
     Move-Item $stage $appDir
+    $stage = $null
     if (Test-Path $old) { Remove-Item -Recurse -Force $old }
 
     # The models config lives outside the install so upgrades keep it. Seed the documented example when absent.
@@ -93,20 +110,36 @@ try {
     }
 
     # Shims: run the installed copy with the right PYTHONPATH and task set; a user-set PARETOBENCH_TASKS wins.
+    # A file in the bin folder that this installer did not write is never overwritten.
     $tasksDir = Join-Path $appDir 'tasks'
+    $launcher = $null
     if ($isWin) {
         $pyCmd = (@($pyExe) + $pyArgs | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
+        # In the default bin folder (<home>\bin) the shim finds the app relative to itself, so a profile path with
+        # non-ASCII characters never has to be encoded. A BIN_DIR elsewhere gets absolute paths in the OEM code page.
+        $relative = $binDir.TrimEnd('\', '/') -ieq (Join-Path $homeDir 'bin').TrimEnd('\', '/')
+        $appRef = if ($relative) { '%~dp0..\app' } else { $appDir }
+        $tasksRef = if ($relative) { '%~dp0..\app\tasks' } else { $tasksDir }
         foreach ($name in @('paretobench', 'pb')) {
-            $cmd = @(
+            $shim = Join-Path $binDir "$name.cmd"
+            if (-not (Test-OurShim $shim)) {
+                Write-Host "Left $shim alone: it was not written by this installer. Use paretobench instead."
+                continue
+            }
+            $cmd = (@(
                 '@echo off',
-                "if not defined PARETOBENCH_TASKS set ""PARETOBENCH_TASKS=$tasksDir""",
-                "set ""PYTHONPATH=$appDir;%PYTHONPATH%""",
+                'setlocal',
+                "REM $marker.ps1. Re-run the installer to upgrade.",
+                "if not defined PARETOBENCH_TASKS set ""PARETOBENCH_TASKS=$tasksRef""",
+                "set ""PYTHONPATH=$appRef;%PYTHONPATH%""",
                 "$pyCmd -m paretobench.cli %*"
-            ) -join "`r`n"
-            Set-Content -Path (Join-Path $binDir "$name.cmd") -Value $cmd -Encoding Ascii
+            ) -join "`r`n") + "`r`n"
+            $oem = [Text.Encoding]::GetEncoding([Globalization.CultureInfo]::CurrentCulture.TextInfo.OEMCodePage)
+            [IO.File]::WriteAllText($shim, $cmd, $oem)
+            if ($name -eq 'paretobench') { $launcher = $shim }
         }
-        $launcher = Join-Path $binDir 'paretobench.cmd'
-        $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+        # Raw read keeps %VAR% entries in the user's Path as they were.
+        $userPath = (Get-Item 'HKCU:\Environment').GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
         if (-not $userPath) { $userPath = '' }
         if (($userPath -split ';') -notcontains $binDir) {
             $newPath = if ($userPath) { "$userPath;$binDir" } else { $binDir }
@@ -115,20 +148,24 @@ try {
         }
     } else {
         foreach ($name in @('paretobench', 'pb')) {
+            $path = Join-Path $binDir $name
+            if (-not (Test-OurShim $path)) {
+                Write-Host "Left $path alone: it was not written by this installer. Use paretobench instead."
+                continue
+            }
             $sh = @(
                 '#!/bin/sh',
-                '# ParetoBench launcher, written by install.ps1. Re-run the installer to upgrade.',
+                "# $marker.ps1. Re-run the installer to upgrade.",
                 "PARETOBENCH_TASKS=""`${PARETOBENCH_TASKS:-$tasksDir}""",
                 "PYTHONPATH=""$appDir`${PYTHONPATH:+:`$PYTHONPATH}""",
                 'export PARETOBENCH_TASKS PYTHONPATH',
                 "exec ""$pyExe"" -m paretobench.cli ""`$@"""
             ) -join "`n"
-            $path = Join-Path $binDir $name
             Set-Content -Path $path -Value ($sh + "`n") -Encoding Ascii -NoNewline
             & chmod 755 $path
             if ($LASTEXITCODE -ne 0) { throw "cannot make $path executable." }
+            if ($name -eq 'paretobench') { $launcher = $path }
         }
-        $launcher = Join-Path $binDir 'paretobench'
         if (($env:PATH -split ':') -notcontains $binDir) {
             Write-Host "Add $binDir to your PATH:  export PATH=""${binDir}:`$PATH"""
         }
@@ -136,10 +173,12 @@ try {
 
     Write-Host "ParetoBench $version installed ($binDir)."
     $env:PYTHONPATH = $appDir; $env:PARETOBENCH_TASKS = $tasksDir
-    & $launcher validate
+    if (-not $launcher) { $launcher = $pyExe }
+    $launchArgs = if ($launcher -eq $pyExe) { @($pyArgs + @('-m', 'paretobench.cli')) } else { @() }
+    & $launcher @launchArgs validate
     if ($LASTEXITCODE -ne 0) { throw 'paretobench validate failed after install (see the error above).' }
     Write-Host 'Checking harness executables (paretobench doctor):'
-    & $launcher doctor
+    & $launcher @launchArgs doctor
     if ($LASTEXITCODE -ne 0) {
         Write-Host 'doctor: some harness executables are missing; that is fine for installing. Add them before running a bench.'
     }
@@ -147,4 +186,7 @@ try {
 } finally {
     $env:PYTHONPATH = $savedPythonPath; $env:PARETOBENCH_TASKS = $savedTasks
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+    if ($stage) { Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue }
+    # An install that died between the two moves leaves the previous release in app.old: put it back.
+    if ((Test-Path $old) -and -not (Test-Path $appDir)) { Move-Item $old $appDir -ErrorAction SilentlyContinue }
 }
