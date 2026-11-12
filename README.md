@@ -39,6 +39,21 @@ Stock Pi, Codex CLI, stock DeepSeek Harness, Steak DSH 0.3.3, Steak Pi 0.28.5 an
   correct counts carry little weight; the two misses were both on the same task (L6). Codex CLI ran stock with an
   empty home on a model it was not built for, and its turn count is a lower bound.
 
+**A second model, 2026-11-12.** Claude Haiku 5.5, short set, three repeats
+([rows](benchmarks/2026-11-12-harness-haiku-short)). Only three arms can reach this model here: Steak Pi 0.28.5,
+Steak Pi run lean, and Claude Code. Cost uses the model's list prices.
+
+| Harness | Correct | Cost vs Claude Code (95%) |
+|---|---|---|
+| Claude Code | 60/60 | 1.00 |
+| Steak Pi, default | 60/60 | 0.55 (0.49 to 0.60), better |
+| Steak Pi, lean | 58/60 | 0.50 (0.43 to 0.57), no clear difference because of the two misses |
+
+The lean run against the default run cost 0.92 times as much (0.82 to 1.01), no clear difference. Both lean misses were
+one task (h5, a sum over a log): the model printed a line count beside the sum and reported the count. Ten more repeats
+of that task gave the default run 8 of 10 and the lean run 10 of 10, so the slip is the model's on both, not the lean
+run's.
+
 ## Results, 2026-11-11
 
 Twenty small Python tasks, hidden deterministic checkers, every run on a fresh fixture. Raw rows and full summaries
