@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-11-11
 
 - One-step installers: `scripts/install.sh` (macOS, Linux) and `scripts/install.ps1` (Windows,
   also runs under PowerShell 7 on Linux). They download the release bundle, verify its SHA-256,
