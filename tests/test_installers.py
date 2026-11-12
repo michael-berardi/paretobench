@@ -34,10 +34,25 @@ class TestInstallPs1Static(unittest.TestCase):
         self.assertIn("DoNotExpandEnvironmentNames", PS1)
         self.assertNotIn("GetEnvironmentVariable('Path', 'User')", PS1)
 
+    def test_user_path_keeps_registry_kind(self):
+        self.assertNotRegex(PS1, r"SetEnvironmentVariable\(\s*'Path'[^\n]*'User'")
+        self.assertIn("GetValueKind('Path')", PS1)
+        self.assertIn("$envKey.SetValue('Path'", PS1)
+
+    def test_body_wrapped_in_function_called_last(self):
+        self.assertFalse([l for l in PS1.splitlines() if l.startswith("$ErrorActionPreference")])
+        self.assertIn("function Install-ParetoBench {", PS1)
+        self.assertEqual(PS1.rstrip().splitlines()[-1], "Install-ParetoBench")
+        self.assertNotRegex(PS1, r"(?m)^\s*exit\b")
+
+    def test_install_sh_portable_grep(self):
+        sh = open(SH, encoding="utf-8").read()
+        self.assertNotIn("\\|", sh)
+
     def test_system_tar_and_cleanup(self):
         self.assertIn(r"System32\tar.exe", PS1)
         self.assertIn("if ($stage) { Remove-Item", PS1)
-        self.assertIn("app.old", PS1.split("} finally {")[1])
+        self.assertIn("app.old", PS1.split("} finally {")[-1])
 
     def test_shims_never_overwrite_foreign_files(self):
         self.assertIn("Test-OurShim $shim", PS1)
@@ -95,6 +110,16 @@ class TestInstallSh(unittest.TestCase):
         r = self.run_install()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("written by install.sh", read(os.path.join(self.bin, "paretobench")))
+
+    def test_pip_style_entry_script_is_not_ours(self):
+        p = os.path.join(self.bin, "pb")
+        with open(p, "w") as f:
+            f.write("#!/bin/sh\nfrom paretobench.cli import main\n")
+        r = self.run_install()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("paretobench.cli import main", read(p))
+        self.assertIn("launchers written: " + os.path.join(self.bin, "paretobench"), r.stdout)
+        self.assertNotIn(os.path.join(self.bin, "pb") + ")", r.stdout)
 
     def test_foreign_paretobench_still_validates(self):
         p = os.path.join(self.bin, "paretobench")

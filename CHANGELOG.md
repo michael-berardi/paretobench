@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.2.3 - 2026-11-11
+
+- Windows installer fix. `install.ps1` 0.2.2 read the user PATH unexpanded but wrote it back as a plain string, so a
+  stock entry such as `%USERPROFILE%\AppData\Local\Microsoft\WindowsApps` stopped expanding and new terminals could
+  lose winget and the Store Python. The PATH is now written back with its original registry type, and the change is
+  broadcast. This is fixed.
+- `install.ps1` now runs inside one function that is called last, so piping it into `iex` no longer leaves
+  `$ErrorActionPreference = 'Stop'` or its variables in your session.
+- `install.sh` uses portable `grep -e` options (the `\|` alternation was a GNU extension), only treats an existing
+  launcher as its own when it mentions both `paretobench.cli` and `PARETOBENCH_TASKS`, and names the launchers it wrote.
+- New tests cover these.
+
 ## 0.2.2 - 2026-11-11
 
 - Installer fixes. On Windows the `paretobench` and `pb` launchers baked the absolute install path in ASCII, so a profile

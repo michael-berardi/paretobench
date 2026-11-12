@@ -107,12 +107,14 @@ fi
 # A file in the bin folder that this installer did not write is never overwritten: it is ours only if it
 # carries the marker line (or is the unmarked shape an earlier release wrote).
 LAUNCHER=""
+WRITTEN=""
 for name in paretobench pb; do
-  if [ -e "$BIN_DIR/$name" ] && ! grep -q 'ParetoBench launcher, written by install\|paretobench\.cli' "$BIN_DIR/$name" 2>/dev/null; then
+  if [ -e "$BIN_DIR/$name" ] && ! { grep -q -e 'ParetoBench launcher, written by install' "$BIN_DIR/$name" 2>/dev/null || { grep -q -e 'paretobench\.cli' "$BIN_DIR/$name" 2>/dev/null && grep -q -e 'PARETOBENCH_TASKS' "$BIN_DIR/$name" 2>/dev/null; }; }; then
     say "Left $BIN_DIR/$name alone: it was not written by this installer. Use paretobench instead."
     continue
   fi
   [ "$name" != paretobench ] || LAUNCHER="$BIN_DIR/paretobench"
+  WRITTEN="${WRITTEN:+$WRITTEN, }$BIN_DIR/$name"
   cat > "$BIN_DIR/$name.tmp.$$" <<SHIM
 #!/bin/sh
 # ParetoBench launcher, written by install.sh. Re-run the installer to upgrade.
@@ -125,7 +127,7 @@ SHIM
   mv -f "$BIN_DIR/$name.tmp.$$" "$BIN_DIR/$name"
 done
 
-say "ParetoBench $VERSION installed ($BIN_DIR/paretobench, $BIN_DIR/pb)."
+say "ParetoBench $VERSION installed (launchers written: ${WRITTEN:-none})."
 if [ -z "$LAUNCHER" ]; then
   LAUNCHER="$BIN_DIR/.paretobench-check.$$"
   printf '#!/bin/sh\nPARETOBENCH_TASKS="%s" PYTHONPATH="%s" exec "%s" -m paretobench.cli "$@"\n' "$APP/tasks" "$APP" "$PYTHON" > "$LAUNCHER"

@@ -5,7 +5,8 @@
 # Environment: PARETOBENCH_HOME (default %LOCALAPPDATA%\ParetoBench, ~/.paretobench on Linux),
 # PARETOBENCH_BIN_DIR (default <home>\bin, ~/.local/bin on Linux), PARETOBENCH_VERSION (e.g. 0.1.0),
 # PARETOBENCH_RELEASE_BASE (override the download base URL, used by tests).
-$ErrorActionPreference = 'Stop'
+function Install-ParetoBench {
+    $ErrorActionPreference = 'Stop'
 
 $repo = 'michael-berardi/paretobench'
 $base = if ($env:PARETOBENCH_RELEASE_BASE) { $env:PARETOBENCH_RELEASE_BASE }
@@ -138,14 +139,24 @@ try {
             [IO.File]::WriteAllText($shim, $cmd, $oem)
             if ($name -eq 'paretobench') { $launcher = $shim }
         }
-        # Raw read keeps %VAR% entries in the user's Path as they were.
-        $userPath = (Get-Item 'HKCU:\Environment').GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
-        if (-not $userPath) { $userPath = '' }
-        if (($userPath -split ';') -notcontains $binDir) {
-            $newPath = if ($userPath) { "$userPath;$binDir" } else { $binDir }
-            [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
-            Write-Host "Added $binDir to your user PATH; open a new terminal to use it."
-        }
+        # Add the bin folder to the USER Path only when absent. The raw value is read without expanding %VAR% entries
+        # and written back with its original registry type, so a stock %USERPROFILE%\... entry keeps expanding.
+        $envKey = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+        try {
+            $userPath = [string]$envKey.GetValue('Path', '', [Microsoft.Win32.RegistryValueOptions]::DoNotExpandEnvironmentNames)
+            $already = @($userPath -split ';' | Where-Object {
+                $_ -and (($_.TrimEnd('\') -ieq $binDir.TrimEnd('\')) -or ([Environment]::ExpandEnvironmentVariables($_).TrimEnd('\') -ieq $binDir.TrimEnd('\')))
+            })
+            if ($already.Count -eq 0) {
+                $newPath = if ($userPath) { $userPath.TrimEnd(';') + ';' + $binDir } else { $binDir }
+                $kind = if ($null -ne $envKey.GetValue('Path', $null)) { $envKey.GetValueKind('Path') } else { [Microsoft.Win32.RegistryValueKind]::ExpandString }
+                $envKey.SetValue('Path', $newPath, $kind)
+                # Setting and clearing a dummy user variable broadcasts the change so new terminals pick the Path up.
+                [Environment]::SetEnvironmentVariable('PARETOBENCH_PATH_REFRESH', '1', 'User')
+                [Environment]::SetEnvironmentVariable('PARETOBENCH_PATH_REFRESH', $null, 'User')
+                Write-Host "Added $binDir to your user PATH; open a new terminal to use it."
+            }
+        } finally { if ($envKey) { $envKey.Close() } }
     } else {
         foreach ($name in @('paretobench', 'pb')) {
             $path = Join-Path $binDir $name
@@ -190,3 +201,5 @@ try {
     # An install that died between the two moves leaves the previous release in app.old: put it back.
     if ((Test-Path $old) -and -not (Test-Path $appDir)) { Move-Item $old $appDir -ErrorAction SilentlyContinue }
 }
+}
+Install-ParetoBench
