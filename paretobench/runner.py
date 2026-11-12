@@ -113,7 +113,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
     key_vals = []
     for e in entries:
         e["key_env"] = e["key_val"] = None
-        if e["adapter"].family == "dsh":
+        if getattr(e["adapter"], "needs_key", False):
             ks = e["mcfg"]["key"]
             e["key_env"] = ks["env"]
             e["key_val"] = C.load_auth_key(ex["pi_agent_dir"], ks["auth"])

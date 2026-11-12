@@ -10,7 +10,7 @@ import json
 import os
 import shutil
 
-HARNESS_NAMES = ("pi", "steak-pi", "claude-code", "dsh", "steak-dsh", "steak-pi-lean", "steak-dsh-long")
+HARNESS_NAMES = ("pi", "steak-pi", "claude-code", "dsh", "steak-dsh", "steak-pi-lean", "steak-dsh-long", "codex")
 LEGACY_TASK_SET = "legacy-steak-dsh-bench"
 TOKEN_KEYS = ("i", "cr", "cw", "o")
 # Used when every rate for a model is 0 (flat plan): weighted tokens instead of dollars.
@@ -136,7 +136,7 @@ def validate_models(models):
             if h in ("pi", "steak-pi", "steak-pi-lean"):
                 _need(isinstance(m.get("pi"), list) and all(isinstance(a, str) for a in m["pi"]),
                       "models-config-invalid", f"{w}: harness '{h}' needs a 'pi' list of model args")
-            elif h in ("dsh", "steak-dsh", "steak-dsh-long"):
+            elif h in ("dsh", "steak-dsh", "steak-dsh-long", "codex"):
                 d = m.get("dsh")
                 _need(isinstance(d, dict) and isinstance(d.get("provider"), str)
                       and isinstance(d.get("model"), str) and isinstance(d.get("route"), dict),
@@ -207,6 +207,7 @@ def resolve_executables():
         "pi_bin": os.path.expanduser(os.environ.get("PB_PI_BIN") or shutil.which("pi") or ""),
         "dsh_bin": os.path.expanduser(os.environ.get("PB_DSH_BIN") or shutil.which("dsh") or ""),
         "claude_bin": os.path.expanduser(os.environ.get("PB_CLAUDE_BIN") or shutil.which("claude") or ""),
+        "codex_bin": os.path.expanduser(os.environ.get("PB_CODEX_BIN") or shutil.which("codex") or ""),
         "steak_pi_package": os.path.expanduser(os.environ.get("PB_STEAK_PI_PACKAGE") or ""),
         "steak_dsh_patch": os.path.expanduser(os.environ.get("PB_STEAK_DSH_PATCH") or ""),
         "pi_agent_dir": os.path.expanduser(os.environ.get("PB_PI_AGENT_DIR") or "~/.pi/agent"),

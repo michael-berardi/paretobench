@@ -4,7 +4,8 @@ One maintained open benchmark with two benches that share tasks, checkers, runne
 
 - **ParetoBench Harness**: one model across coding-agent harnesses. Which harness gets the task done
   correctly for the least cost and time? Harnesses: `pi` (stock Pi, no extensions), `steak-pi`,
-  `claude-code`, `dsh` (stock DeepSeek Harness), `steak-dsh`. Comparisons are only ever made within one
+  `claude-code`, `dsh` (stock DeepSeek Harness), `steak-dsh`, and `codex` (stock Codex CLI), plus the extra arms `steak-pi-lean` and
+  `steak-dsh-long` (eight adapters in all). Comparisons are only ever made within one
   model; each model lists the harnesses that can run it.
 - **ParetoBench Model**: one harness (default `steak-pi`) across models. Which model gets the task done
   correctly for the least cost and time, under identical harness, tools, prompts and effort policy?
@@ -101,8 +102,9 @@ seconds), so they separate entries on cost and time, not on which one can solve 
   there and no results are published for it (`tasks-long/pilot/`). See
   [docs/METHODOLOGY.md](docs/METHODOLOGY.md#the-long-task-set-long-v1) for the tasks, the admission rule and the gates.
 
-Two extra harness arms exist for the long-work questions: `steak-pi-lean` (the `steak-pi` arm with
-`--exclude-tools ultraterm_subagents,todo`) and `steak-dsh-long` (the `steak-dsh` arm plus the bundle's
+Three extra harness arms exist: `steak-pi-lean` (the `steak-pi` arm the way `steak-pi run --lean` runs it since Steak
+Pi 0.28.5: `--exclude-tools ultraterm_subagents,ultraterm_hub,todo` and `STEAK_PI_WORK_RULES_BRIEF=1`),
+`codex` (stock Codex CLI on the model's `dsh` route; no new config keys, see METHODOLOGY) and `steak-dsh-long` (the `steak-dsh` arm plus the bundle's
 `long.patch.yml`; a bundle without it stops the run with a named error). List them under `harnesses` in a model entry
 to use them. Reports also print pass@k, pass^k, timeouts and the correct rate per repeat.
 
@@ -171,7 +173,7 @@ No machine-specific path or secret lives in this repo.
 - The real file is `$PARETOBENCH_CONFIG` or `~/.config/paretobench/models.json`: per model, a `harnesses`
   list, per-harness settings (`pi` model args, optional `steak_pi_extra`, `claude` args, a `dsh` route,
   `key.auth`/`key.env`) and one `rates` table applied to every harness.
-- Executables come from env with PATH defaults: `PB_PI_BIN`, `PB_DSH_BIN`, `PB_CLAUDE_BIN`,
+- Executables come from env with PATH defaults: `PB_PI_BIN`, `PB_DSH_BIN`, `PB_CLAUDE_BIN`, `PB_CODEX_BIN`,
   `PB_STEAK_PI_PACKAGE` (the Steak Pi package dir), `PB_STEAK_DSH_PATCH` (the bundle's cordis.patch.yml),
   `PB_PI_AGENT_DIR` (where auth.json/models.json are read; default `~/.pi/agent`).
 - `~/.config/paretobench/env` (KEY=VALUE lines) is loaded by the CLI when present, so machine paths stay
@@ -204,7 +206,7 @@ python3 -m unittest discover -s tests
 Covers the statistics (bootstrap determinism, Wilson, sign test, frontier, verdict rule, pass@k, timeouts, per-repeat
 correct), the long set (deterministic generator, every reference passes, every untouched fixture fails, a runner run
 through scripted agents), legacy row
-import, task-set mixing refusal, config validation, command construction for all five harnesses with
+import, task-set mixing refusal, config validation, command construction for all eight harnesses with
 fake executables (keys never in argv), resume, and stop cleanup with a fake slow harness.
 
 ## License

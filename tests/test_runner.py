@@ -129,6 +129,61 @@ class TestResume(RunnerTestBase):
         self.assertEqual(self.calls(), 0)
 
 
+ENV_SCRIPT = """\
+import os, sys
+with open(sys.argv[1], "a") as f:
+    f.write(("set" if os.environ.get("TEST_API_KEY") else "unset") + "\\n")
+print("ok")
+"""
+
+
+class TestKeyInjection(RunnerTestBase):
+    """The runner injects the key by the adapter's needs_key attribute, not by the family name."""
+    MODELS = {"fm": {"harnesses": ["pi"], "pi": ["--model", "x"], "key": {"auth": "test", "env": "TEST_API_KEY"},
+                     "dsh": {"provider": "gw", "model": "m", "route": {"baseURL": "https://x"}},
+                     "rates": {"i": 0, "cr": 0, "cw": 0, "o": 0}}}
+
+    def injected(self, **attrs):
+        with open(os.path.join(self.d, "auth.json"), "w") as f:
+            json.dump({"test": {"type": "api_key", "key": "sk-injected-test"}}, f)
+        with open(self.script, "w") as f:
+            f.write(ENV_SCRIPT)
+        os.environ.pop("TEST_API_KEY", None)
+        adapter = fake_adapter(self.script, self.count_file)
+        for k, v in attrs.items():
+            setattr(adapter, k, v)
+        entries = RUN.build_entries("harness", self.MODELS, self.ex, model="fm",
+                                    harness_names=["pi"], registry={"pi": adapter})
+        RUN.run_bench("harness", entries, 1, 1, self.out, task_names=["t3"], timeout=60, ex=self.ex)
+        with open(self.count_file) as f:
+            seen = set(f.read().split())
+        with open(os.path.join(self.out, "rows.jsonl")) as f:
+            self.assertNotIn("sk-injected-test", f.read())
+        return seen
+
+    def test_needs_key_true_injects_whatever_the_family(self):
+        self.assertEqual(self.injected(needs_key=True, family="codex"), {"set"})
+        self.assertEqual(self.injected_again(needs_key=True, family="fake"), {"set"})
+
+    def injected_again(self, **attrs):
+        import shutil
+        shutil.rmtree(self.out, ignore_errors=True)
+        os.remove(self.count_file)
+        return self.injected(**attrs)
+
+    def test_family_dsh_alone_does_not_inject(self):
+        self.assertEqual(self.injected(family="dsh"), {"unset"})
+
+    def test_pi_family_gets_no_key(self):
+        self.assertEqual(self.injected(family="pi"), {"unset"})
+        import shutil
+        shutil.rmtree(self.out, ignore_errors=True)
+        os.remove(self.count_file)
+        from paretobench import harnesses as H
+        self.assertEqual(self.injected(family="pi", needs_key=getattr(H.get_adapter("steak-pi"), "needs_key", False)),
+                         {"unset"})
+
+
 class TestModelBenchRows(RunnerTestBase):
     def test_row_carries_harness_not_model_key(self):
         adapter = fake_adapter(self.script, self.count_file)

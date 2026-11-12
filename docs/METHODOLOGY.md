@@ -132,8 +132,20 @@ Exact commands (prompt last, cwd is the fresh fixture):
 - dsh: `<PB_DSH_BIN> headless --patch <generated model patch> --json --permission-mode workspace-write
   --approval-policy never <prompt>`. Per-lane DSH_HOME, telemetry disabled.
 - steak-dsh: the dsh command plus `--patch <PB_STEAK_DSH_PATCH>` after the model patch.
-- steak-pi-lean: the steak-pi command with `--exclude-tools ultraterm_subagents,todo` inserted before the prompt
-  (the dispatch and todo tools off). Everything else, including the agent dir and package, is the steak-pi arm.
+- steak-pi-lean: the steak-pi command with `--exclude-tools ultraterm_subagents,ultraterm_hub,todo` inserted before
+  the prompt (dispatch, hub and todo tools off) and `STEAK_PI_WORK_RULES_BRIEF=1` in the child environment. This is
+  what `steak-pi run --lean` passes since Steak Pi 0.28.5; before ParetoBench 0.4.0 the arm excluded only
+  `ultraterm_subagents,todo` and set no variable. Everything else, including the agent dir and package, is the
+  steak-pi arm.
+- codex: `<PB_CODEX_BIN or codex on PATH> exec --json --skip-git-repo-check --ephemeral <prompt>`. Each lane has a
+  private `CODEX_HOME` holding only a generated `config.toml` (model, `model_provider`, `model_reasoning_effort`,
+  `approval_policy = "never"`, `sandbox_mode = "workspace-write"` and a `[model_providers.<name>]` block with
+  `base_url`, `env_key` and `wire_api = "responses"`), built from the model's `dsh` object (route baseURL and
+  apiKeyEnv, model, reasoningEffort) and `key`, so a model that can run the dsh arms can run codex. The key is never in
+  the file or argv: the runner puts it in the child environment. Codex counts cached tokens inside `input_tokens`, so
+  uncached input is `input_tokens - cached_input_tokens`. Tool calls are every completed item that is not an agent
+  message, reasoning, error or todo list. Codex reports usage per user turn, not per model request, so the turns
+  column is tools + 1, a lower bound on model requests; do not compare it with turns of other arms as an exact count.
 - steak-dsh-long: the steak-dsh command plus `--patch <long.patch.yml>` after the bundle patch, where
   `long.patch.yml` is looked up beside `PB_STEAK_DSH_PATCH`. A bundle without it stops the run before anything
   starts with the named error `steak-dsh-long-patch-missing`.
@@ -219,6 +231,7 @@ Any change to a gate is recorded here with its reason before the runs that use i
 - Flat-plan models have no dollar price. Their comparisons use weighted tokens, a proxy.
 - A harness can only be compared on models it can run. Claude Code runs Claude models only.
 - Results age as harnesses and models change. Every row carries versions and dates for this reason.
+- The codex arm's turns are a lower bound (tools + 1): Codex does not report model requests.
 - The dsh family reaches non-native models through declared gateway routes. Cache behaviour differs from a
   native route. This affects all dsh-family entries equally, but not the pi family or claude-code.
 

@@ -6,6 +6,7 @@ from . import steak_dsh
 
 name = "steak-dsh-long"
 family = "dsh"
+needs_key = True
 
 setup_lane = steak_dsh.setup_lane
 parse = steak_dsh.parse

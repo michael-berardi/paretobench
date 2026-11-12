@@ -9,6 +9,7 @@ from . import RunFail, events_of, empty_usage
 
 name = "dsh"
 family = "dsh"
+needs_key = True  # the runner puts the model's key into the child environment
 
 
 def validate(mcfg, ex):

@@ -10,14 +10,17 @@ Adapter interface (used by paretobench.runner and by the tests):
                                          -> (argv, env_extra) with no key in argv
   parse(rc, out, err, scrub)             -> (usage, text); raises RunFail on failure
   after_run(lane)                        per-run cleanup (e.g. dsh sessions)
+Adapter attributes: name, family, and needs_key (True when the runner must put the model's
+key into the child environment; absent means False).
 """
 import importlib
 
 # Old arm names in legacy steak-dsh bench rows map to canonical harness names.
-ARM_MAP = {"dsh": "dsh", "sdsh": "steak-dsh", "sp": "steak-pi", "cc": "claude-code", "pi": "pi"}
+ARM_MAP = {"dsh": "dsh", "sdsh": "steak-dsh", "sp": "steak-pi", "cc": "claude-code", "pi": "pi",
+           "codex": "codex"}
 _MODULES = {"pi": "pi", "steak-pi": "steak_pi", "claude-code": "claude_code",
             "dsh": "dsh", "steak-dsh": "steak_dsh",
-            "steak-pi-lean": "steak_pi_lean", "steak-dsh-long": "steak_dsh_long"}
+            "steak-pi-lean": "steak_pi_lean", "steak-dsh-long": "steak_dsh_long", "codex": "codex"}
 
 
 class RunFail(Exception):

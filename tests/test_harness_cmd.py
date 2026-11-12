@@ -13,7 +13,7 @@ PROMPT = "do the task"
 def make_ex(d):
     """Fake executables and a fake pi agent dir; nothing is executed here."""
     ex = {}
-    for name, key in (("pi", "pi_bin"), ("dsh", "dsh_bin"), ("claude", "claude_bin")):
+    for name, key in (("pi", "pi_bin"), ("dsh", "dsh_bin"), ("claude", "claude_bin"), ("codex", "codex_bin")):
         p = os.path.join(d, name)
         with open(p, "w") as f:
             f.write("#!/bin/sh\nexit 0\n")
@@ -45,7 +45,8 @@ def mcfg():
         "steak_pi_extra": ["--steak-pi-paid-route=gw/model"],
         "claude": ["--model", "claude-x", "--effort", "medium"],
         "key": {"auth": "test", "env": "TEST_API_KEY"},
-        "dsh": {"provider": "gw", "model": "model", "route": {"baseURL": "https://x"}},
+        "dsh": {"provider": "gw", "model": "model", "reasoningEffort": "high",
+                "route": {"baseURL": "https://x", "apiKeyEnv": "TEST_API_KEY"}},
         "rates": {"i": 0, "cr": 0, "cw": 0, "o": 0},
     }
 
@@ -133,9 +134,11 @@ class TestCommandConstruction(unittest.TestCase):
         base_argv, base_env = H.get_adapter("steak-pi").build_command(
             self.ex, self.m, PROMPT, self.lane(H.get_adapter("steak-pi"), "steak-pi"))
         self.assertEqual(argv[:-3], base_argv[:-1])  # identical to steak-pi up to the added flags
-        self.assertEqual(argv[-3:], ["--exclude-tools", "ultraterm_subagents,todo", PROMPT])  # prompt last
+        self.assertEqual(argv[-3:], ["--exclude-tools", "ultraterm_subagents,ultraterm_hub,todo", PROMPT])  # prompt last
         self.assertNotIn("-ne", argv)
-        self.assertEqual(set(env), set(base_env))
+        self.assertEqual(set(env), set(base_env) | {"STEAK_PI_WORK_RULES_BRIEF"})
+        self.assertEqual(env["STEAK_PI_WORK_RULES_BRIEF"], "1")
+        self.assertNotIn("STEAK_PI_WORK_RULES_BRIEF", base_env)
         self.assert_no_secret(argv, env)
         with open(os.path.join(lane["agent_dir"], "settings.json")) as f:
             self.assertEqual(json.load(f), {"quietStartup": True, "packages": [self.ex["steak_pi_package"]]})
@@ -296,3 +299,150 @@ class TestPiProviderError(unittest.TestCase):
         out = _json.dumps({"type": "agent_end", "messages": [{"role": "user", "content": []}]})
         with self.assertRaises(RunFail):
             pi.parse(0, out, "", lambda t: t)
+
+
+def codex_event(**kw):
+    return json.dumps(kw)
+
+
+class TestCodexArm(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.ex = make_ex(self.tmp.name)
+        self.m = mcfg()
+        self.work = os.path.join(self.tmp.name, "work")
+        os.makedirs(self.work)
+        self.a = H.get_adapter("codex")
+
+    def test_registered(self):
+        self.assertIn("codex", H._MODULES)
+        self.assertIn("codex", C.HARNESS_NAMES)
+        self.assertEqual(self.a.name, "codex")
+        self.assertEqual(self.a.family, "codex")
+        self.assertTrue(self.a.needs_key)
+        self.assertEqual(len(C.HARNESS_NAMES), 8)
+
+    def test_command_and_lane_home(self):
+        self.a.validate(self.m, self.ex)
+        l0 = self.a.setup_lane(self.ex, self.m, self.work, 0, "codex")
+        l1 = self.a.setup_lane(self.ex, self.m, self.work, 1, "codex")
+        self.assertNotEqual(l0["codex_home"], l1["codex_home"])
+        argv, env = self.a.build_command(self.ex, self.m, PROMPT, l0)
+        self.assertEqual(argv, [self.ex["codex_bin"], "exec", "--json", "--skip-git-repo-check",
+                                "--ephemeral", PROMPT])
+        self.assertEqual(env, {"CODEX_HOME": l0["codex_home"]})
+        self.assertNotIn(SECRET, argv)
+        self.assertEqual(os.listdir(l0["codex_home"]), ["config.toml"])
+
+    def test_config_toml(self):
+        lane = self.a.setup_lane(self.ex, self.m, self.work, 0, "codex")
+        with open(os.path.join(lane["codex_home"], "config.toml")) as f:
+            text = f.read()
+        for line in ('model = "model"', 'model_provider = "bench"', 'model_reasoning_effort = "high"',
+                     'approval_policy = "never"', 'sandbox_mode = "workspace-write"',
+                     "[model_providers.bench]", 'base_url = "https://x"', 'env_key = "TEST_API_KEY"',
+                     'wire_api = "responses"'):
+            self.assertIn(line, text)
+        self.assertNotIn(SECRET, text)
+        self.assertNotIn("api_key", text)
+        try:
+            import tomllib
+        except ImportError:
+            return
+        t = tomllib.loads(text)
+        self.assertEqual(t["model_providers"]["bench"]["env_key"], "TEST_API_KEY")
+
+    def test_default_effort_medium(self):
+        del self.m["dsh"]["reasoningEffort"]
+        self.assertIn('model_reasoning_effort = "medium"', self.a.config_toml(self.m))
+
+    def test_validate_errors(self):
+        with self.assertRaises(C.PBError) as cm:
+            self.a.validate(self.m, dict(self.ex, codex_bin=""))
+        self.assertEqual(cm.exception.name, "codex-bin-missing")
+        m = mcfg()
+        del m["dsh"]
+        with self.assertRaises(C.PBError) as cm:
+            self.a.validate(m, self.ex)
+        self.assertEqual(cm.exception.name, "harness-unavailable-for-model")
+        m = mcfg()
+        del m["key"]
+        with self.assertRaises(C.PBError) as cm:
+            self.a.validate(m, self.ex)
+        self.assertEqual(cm.exception.name, "key-config-missing")
+        m = mcfg()
+        m["key"]["env"] = "OTHER"
+        with self.assertRaises(C.PBError) as cm:
+            self.a.validate(m, self.ex)
+        self.assertEqual(cm.exception.name, "key-config-mismatch")
+
+    def test_parse_usage_tools_and_text(self):
+        out = "\n".join([
+            "not json",
+            codex_event(type="thread.started", thread_id="t"),
+            codex_event(type="item.completed", item={"type": "reasoning", "text": "hm"}),
+            codex_event(type="item.completed", item={"type": "command_execution", "command": "ls"}),
+            codex_event(type="item.completed", item={"type": "file_change"}),
+            codex_event(type="item.completed", item={"type": "todo_list"}),
+            codex_event(type="item.completed", item={"type": "error", "message": "x"}),
+            codex_event(type="item.completed", item={"type": "agent_message", "text": "done"}),
+            codex_event(type="turn.completed", usage={"input_tokens": 1000, "cached_input_tokens": 800,
+                                                      "output_tokens": 50, "reasoning_output_tokens": 20}),
+            codex_event(type="turn.completed", usage={"input_tokens": 100, "cached_input_tokens": 0,
+                                                      "output_tokens": 5}),
+        ])
+        u, text = self.a.parse(0, out, "", lambda s: s)
+        self.assertEqual(text, "done")
+        self.assertEqual((u["i"], u["cr"], u["cw"], u["o"], u["reasoning"]), (300, 800, 0, 55, 20))
+        self.assertEqual(u["tools"], 2)
+        self.assertEqual(u["turns"], 3)  # tools + 1, a lower bound
+
+    def test_parse_cached_larger_than_input_does_not_go_negative(self):
+        out = codex_event(type="turn.completed", usage={"input_tokens": 5, "cached_input_tokens": 9})
+        u, _ = self.a.parse(0, out, "", lambda s: s)
+        self.assertEqual(u["i"], 0)
+
+    def test_parse_failures(self):
+        ok = codex_event(type="turn.completed", usage={"input_tokens": 1})
+        with self.assertRaises(H.RunFail) as cm:
+            self.a.parse(1, ok, "bad " + SECRET, lambda s: s.replace(SECRET, "***"))
+        self.assertNotIn(SECRET, str(cm.exception))
+        with self.assertRaises(H.RunFail):
+            self.a.parse(0, codex_event(type="turn.failed", error={"message": "no"}), "", lambda s: s)
+        with self.assertRaises(H.RunFail):
+            self.a.parse(0, "", "", lambda s: s)
+
+    def test_version_runs_fake_executable(self):
+        with open(self.ex["codex_bin"], "w") as f:
+            f.write("#!/bin/sh\necho codex-cli 9.9.9\n")
+        self.assertEqual(self.a.version(self.ex), "codex-cli 9.9.9")
+
+    def test_models_file_validation(self):
+        m = mcfg()
+        m["harnesses"] = ["codex"]
+        self.assertTrue(C.validate_models({"m": m}))
+        for drop in ("dsh", "key"):
+            bad = dict(m)
+            del bad[drop]
+            with self.assertRaises(C.PBError):
+                C.validate_models({"m": bad})
+
+    def test_resolve_executables_reads_pb_codex_bin(self):
+        old = os.environ.get("PB_CODEX_BIN")
+        os.environ["PB_CODEX_BIN"] = "/x/codex"
+        try:
+            self.assertEqual(C.resolve_executables()["codex_bin"], "/x/codex")
+        finally:
+            if old is None:
+                del os.environ["PB_CODEX_BIN"]
+            else:
+                os.environ["PB_CODEX_BIN"] = old
+
+
+class TestNeedsKey(unittest.TestCase):
+    def test_attribute_per_adapter(self):
+        for n in ("dsh", "steak-dsh", "steak-dsh-long", "codex"):
+            self.assertTrue(H.get_adapter(n).needs_key, n)
+        for n in ("pi", "steak-pi", "steak-pi-lean", "claude-code"):
+            self.assertFalse(getattr(H.get_adapter(n), "needs_key", False), n)

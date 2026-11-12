@@ -7,6 +7,7 @@ from . import dsh
 
 name = "steak-dsh"
 family = "dsh"
+needs_key = True
 
 setup_lane = dsh.setup_lane
 parse = dsh.parse

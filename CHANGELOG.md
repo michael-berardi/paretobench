@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 - 2026-11-12
+
+- New harness arm `codex`: stock Codex CLI (`codex exec --json --skip-git-repo-check --ephemeral`), found with
+  `PB_CODEX_BIN` or `codex` on PATH. Each lane gets a private `CODEX_HOME` with only a generated `config.toml` built
+  from the model's existing `dsh` object and `key`, so no new config keys; the key is never written to disk or argv.
+  Cached tokens are subtracted from Codex's `input_tokens`; turns are tools + 1, a lower bound, because Codex reports
+  usage per user turn. Added to `HARNESS_NAMES`, the models-file validation, `pb doctor` and the docs (eight adapters).
+- The runner injects a model's key when the adapter sets `needs_key = True` (dsh, steak-dsh, steak-dsh-long, codex)
+  instead of by the family name `dsh`. Behaviour for existing arms is unchanged; the pi family still gets no key.
+- `steak-pi-lean` now matches `steak-pi run --lean` since Steak Pi 0.28.5: `--exclude-tools
+  ultraterm_subagents,ultraterm_hub,todo` and `STEAK_PI_WORK_RULES_BRIEF=1`. Rows from the earlier definition (0.3.x)
+  are not the same arm.
+
 ## 0.3.1 - 2026-11-12
 
 - The `long-v1` pilot ran (five arms, one model, two repeats; outcome in `tasks-long/pilot/`, rows in `benchmarks/2026-11-12-long-v1-pilot-deepseek/`). Every arm
