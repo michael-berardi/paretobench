@@ -27,7 +27,8 @@ sees the checker. A task is admitted only when all of these hold:
    For tasks where an obvious wrong fix exists, the checker must also fail after that wrong fix.
 5. The task discriminates. It belongs to one of the eight categories below.
 6. For a long task set (below), a pilot decides: a task that every arm passes on every repeat, or every arm fails
-   on every repeat, is dropped before the set is hashed. Record the pilot rows with the set.
+   on every repeat, is dropped before the set is hashed. Record the pilot outcome with the set (`tasks-long/pilot/`)
+   and its rows with the dated results (`benchmarks/`).
 
 The eight discrimination categories, with the current tasks:
 
@@ -97,9 +98,11 @@ run, 3600 s for L6. A run that hits it stays in the sample as incorrect and is c
 
 Admission. A task enters `long-v1` only when rules 1 to 5 above hold, its reference passes and its untouched fixture
 fails, and rule 6 holds: a pilot (every arm, two repeats) drops any task that every arm passes on every repeat or
-every arm fails on every repeat. Dropped tasks are listed with the pilot rows in `tasks-long/pilot/`, and only then is the
-set hashed and published. Status of this draft: the eleven tasks are built and selftested; the pilot has not run, so
-the hash printed by `pb validate` is provisional and no result may be published under it until the pilot is done.
+every arm fails on every repeat. Dropped tasks are listed in `tasks-long/pilot/` (the rows are in `benchmarks/`), and only then is the
+set hashed and published. Status: the pilot ran on 2026-11-12 on one Flash-class model (outcome in `tasks-long/pilot/`). Every
+arm passed every repeat of all eleven tasks (L8 after its prompt was corrected), so by rule 6 no task is admitted on
+that model, the long gate below was not run, and no long-set result is published. The tasks stay in the repository as
+candidates; a pilot on another model decides for that model.
 
 ## Controls
 
@@ -210,7 +213,8 @@ Any change to a gate is recorded here with its reason before the runs that use i
 
 - 20 small Python tasks. They measure harness overhead and reliability on short tasks, not large-repo skill. The long
   set (`long-v1`) covers that, but it is one generated repository, not a real one, and its hidden checkers see only the
-  final tree. It is unpiloted until its pilot has run.
+  final tree. Its pilot found that it does not discriminate on the one model tried (every arm passed everything), so it
+  has no published results.
 - One machine. Wall time is noisy, especially under parallel runs. Treat time as indicative.
 - Flat-plan models have no dollar price. Their comparisons use weighted tokens, a proxy.
 - A harness can only be compared on models it can run. Claude Code runs Claude models only.

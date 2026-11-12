@@ -96,8 +96,9 @@ seconds), so they separate entries on cost and time, not on which one can solve 
   exact answers, mutation-judged test writing, compaction stress, hard codegen, a delegated wave, a batch of edits,
   tool-loop recovery and a finish-guard trap. Hidden deterministic checkers run outside the agent's tree; read-only
   tasks are judged by a full-tree SHA manifest. Select it with `--task-set long-v1` on `harness`, `model`, `selftest`
-  and `validate`; the hard timeout defaults to 30 minutes (60 for L6) from `tasks-long/budgets.json`. Status: built and
-  selftested, **not yet piloted**: no results are published for it. See
+  and `validate`; the hard timeout defaults to 30 minutes (60 for L6) from `tasks-long/budgets.json`. Status: built,
+  selftested and piloted on one model, where **every harness passed every task**, so it does not separate harnesses
+  there and no results are published for it (`tasks-long/pilot/`). See
   [docs/METHODOLOGY.md](docs/METHODOLOGY.md#the-long-task-set-long-v1) for the tasks, the admission rule and the gates.
 
 Two extra harness arms exist for the long-work questions: `steak-pi-lean` (the `steak-pi` arm with

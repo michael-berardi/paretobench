@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.1 - 2026-11-12
+
+- The `long-v1` pilot ran (five arms, one model, two repeats; outcome in `tasks-long/pilot/`, rows in `benchmarks/2026-11-12-long-v1-pilot-deepseek/`). Every arm
+  passed every repeat of every task, so under admission rule 6 no task is admitted on that model, the long gate was not
+  run and no long-set result is published.
+- Fixed the L8 prompt: it asked for `<parsed entries>` where the checker and the reference expect the number of parsed
+  entries. The `long-v1` hash changes from `b9348b7c3c551ad3` to `669740c30d0f28b8`. The short set is unchanged.
+- Lean gate result published in `benchmarks/2026-11-12-lean-gate-deepseek/`: `steak-pi-lean` against `steak-pi` is
+  "better" (60 of 60 correct on both, cost ratio 0.46, 95% interval 0.36 to 0.63), so the arm is kept. Against stock
+  `pi` there is no clear difference (cost ratio 1.07, interval 0.83 to 1.34).
+
 ## 0.3.0 - 2026-11-12
 
 - New task set `long-v1` in `tasks-long/`: eleven long, multi-step tasks (feature, bug hunt, refactor, read-only
