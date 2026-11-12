@@ -1,0 +1,798 @@
+{
+  "pb_version": "0.4.1",
+  "bench": "harness",
+  "task_set": "3c3185f48a7f97a0",
+  "rows": 300,
+  "bootstrap": {
+    "resamples": 5000,
+    "seed": 1,
+    "unit": "(task, rep) pairs"
+  },
+  "groups": {
+    "deepseek": {
+      "rates": {
+        "i": 3.5e-08,
+        "cr": 5e-09,
+        "cw": 0,
+        "o": 5e-07
+      },
+      "metric": "cost $",
+      "note": "per-token prices of the route; DSH cannot send the gateway's session-affinity headers on a declared route, Steak Pi does",
+      "baseline": "pi",
+      "entries": {
+        "codex": {
+          "correct": 60,
+          "total": 60,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9398281478579101,
+            1.0
+          ],
+          "i": 344180,
+          "cr": 3165568,
+          "cw": 0,
+          "o": 88031,
+          "metric": 0.07188964,
+          "metric_per_correct": 0.0011981606666666667,
+          "median_sec": 28.8,
+          "p90_sec": 69.8,
+          "median_turns": 5.0,
+          "pass_at_k": {
+            "k": 3,
+            "pass_any": 1.0,
+            "pass_all": 1.0
+          },
+          "timeouts": 0,
+          "per_rep_correct": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0
+          },
+          "dollars": 0.07188964,
+          "frontier_cost": false,
+          "frontier_time": false
+        },
+        "dsh": {
+          "correct": 60,
+          "total": 60,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9398281478579101,
+            1.0
+          ],
+          "i": 302023,
+          "cr": 2117376,
+          "cw": 0,
+          "o": 62630,
+          "metric": 0.052472685,
+          "metric_per_correct": 0.0008745447499999999,
+          "median_sec": 22.95,
+          "p90_sec": 65.1,
+          "median_turns": 5.0,
+          "pass_at_k": {
+            "k": 3,
+            "pass_any": 1.0,
+            "pass_all": 1.0
+          },
+          "timeouts": 0,
+          "per_rep_correct": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0
+          },
+          "dollars": 0.052472685,
+          "frontier_cost": false,
+          "frontier_time": false
+        },
+        "pi": {
+          "correct": 60,
+          "total": 60,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9398281478579101,
+            1.0
+          ],
+          "i": 214703,
+          "cr": 647552,
+          "cw": 0,
+          "o": 42648,
+          "metric": 0.032076365,
+          "metric_per_correct": 0.0005346060833333334,
+          "median_sec": 19.45,
+          "p90_sec": 38.4,
+          "median_turns": 4.0,
+          "pass_at_k": {
+            "k": 3,
+            "pass_any": 1.0,
+            "pass_all": 1.0
+          },
+          "timeouts": 0,
+          "per_rep_correct": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0
+          },
+          "dollars": 0.032076365,
+          "frontier_cost": true,
+          "frontier_time": true
+        },
+        "steak-dsh": {
+          "correct": 60,
+          "total": 60,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9398281478579101,
+            1.0
+          ],
+          "i": 209510,
+          "cr": 1049728,
+          "cw": 0,
+          "o": 42338,
+          "metric": 0.03375049,
+          "metric_per_correct": 0.0005625081666666667,
+          "median_sec": 20.6,
+          "p90_sec": 51.3,
+          "median_turns": 4.0,
+          "pass_at_k": {
+            "k": 3,
+            "pass_any": 1.0,
+            "pass_all": 1.0
+          },
+          "timeouts": 0,
+          "per_rep_correct": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0
+          },
+          "dollars": 0.03375049,
+          "frontier_cost": false,
+          "frontier_time": false
+        },
+        "steak-pi": {
+          "correct": 60,
+          "total": 60,
+          "correct_rate": 1.0,
+          "wilson95": [
+            0.9398281478579101,
+            1.0
+          ],
+          "i": 206627,
+          "cr": 831360,
+          "cw": 0,
+          "o": 43893,
+          "metric": 0.033335245,
+          "metric_per_correct": 0.0005555874166666666,
+          "median_sec": 22.3,
+          "p90_sec": 53.5,
+          "median_turns": 5.0,
+          "pass_at_k": {
+            "k": 3,
+            "pass_any": 1.0,
+            "pass_all": 1.0
+          },
+          "timeouts": 0,
+          "per_rep_correct": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0
+          },
+          "dollars": 0.033335245,
+          "frontier_cost": false,
+          "frontier_time": false
+        }
+      },
+      "vs_baseline": {
+        "codex": {
+          "pairs": 60,
+          "cost": {
+            "ratio": 2.24120282956002,
+            "ci95": [
+              1.8816702800568146,
+              2.624162091024043
+            ]
+          },
+          "total_input": {
+            "ratio": 4.070429281361082,
+            "ci95": [
+              3.608578702040563,
+              4.544151485345946
+            ]
+          },
+          "output": {
+            "ratio": 2.0641296192084035,
+            "ci95": [
+              1.6056867700021888,
+              2.5721991523609744
+            ]
+          },
+          "wall_time": {
+            "ratio": 1.583495957624756,
+            "ci95": [
+              1.2833282535812254,
+              1.9393939393939394
+            ]
+          },
+          "cost_wins": 6,
+          "correct": [
+            60,
+            60
+          ],
+          "discordant": [
+            0,
+            0
+          ],
+          "sign_test_p": null,
+          "verdict": "worse"
+        },
+        "dsh": {
+          "pairs": 60,
+          "cost": {
+            "ratio": 1.6358675616766425,
+            "ci95": [
+              1.4638966060833587,
+              1.821956668355621
+            ]
+          },
+          "total_input": {
+            "ratio": 2.8058973273567562,
+            "ci95": [
+              2.5503576638900656,
+              3.09782613155638
+            ]
+          },
+          "output": {
+            "ratio": 1.4685331082348527,
+            "ci95": [
+              1.2963027027027028,
+              1.660231497127408
+            ]
+          },
+          "wall_time": {
+            "ratio": 1.3687621968218568,
+            "ci95": [
+              1.0599062729377224,
+              1.7346027466509395
+            ]
+          },
+          "cost_wins": 4,
+          "correct": [
+            60,
+            60
+          ],
+          "discordant": [
+            0,
+            0
+          ],
+          "sign_test_p": null,
+          "verdict": "worse"
+        },
+        "steak-dsh": {
+          "pairs": 60,
+          "cost": {
+            "ratio": 1.0521918552803597,
+            "ci95": [
+              0.9475900960087156,
+              1.1792651258658264
+            ]
+          },
+          "total_input": {
+            "ratio": 1.4604009254802814,
+            "ci95": [
+              1.3459482343477962,
+              1.5847371828961392
+            ]
+          },
+          "output": {
+            "ratio": 0.9927311948977677,
+            "ci95": [
+              0.8878627418278853,
+              1.121298535964354
+            ]
+          },
+          "wall_time": {
+            "ratio": 1.0945079453582383,
+            "ci95": [
+              0.8612510753348899,
+              1.3893250918810558
+            ]
+          },
+          "cost_wins": 28,
+          "correct": [
+            60,
+            60
+          ],
+          "discordant": [
+            0,
+            0
+          ],
+          "sign_test_p": null,
+          "verdict": "no clear difference"
+        },
+        "steak-pi": {
+          "pairs": 60,
+          "cost": {
+            "ratio": 1.039246342283485,
+            "ci95": [
+              0.9399347267129996,
+              1.145412292201344
+            ]
+          },
+          "total_input": {
+            "ratio": 1.203805138851036,
+            "ci95": [
+              1.0934644981160846,
+              1.326225211497539
+            ]
+          },
+          "output": {
+            "ratio": 1.0291924592009003,
+            "ci95": [
+              0.9295048736306392,
+              1.1291827583525569
+            ]
+          },
+          "wall_time": {
+            "ratio": 1.0985503206021745,
+            "ci95": [
+              0.8761203585147247,
+              1.3651737128505652
+            ]
+          },
+          "cost_wins": 31,
+          "correct": [
+            60,
+            60
+          ],
+          "discordant": [
+            0,
+            0
+          ],
+          "sign_test_p": null,
+          "verdict": "no clear difference"
+        }
+      },
+      "per_task": {
+        "h1": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h10": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h11": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h12": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h2": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h3": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h4": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h5": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h6": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h7": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h8": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "h9": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t1": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t2": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t3": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t4": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t5": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t6": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t7": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        },
+        "t8": {
+          "codex": [
+            3,
+            3
+          ],
+          "dsh": [
+            3,
+            3
+          ],
+          "pi": [
+            3,
+            3
+          ],
+          "steak-dsh": [
+            3,
+            3
+          ],
+          "steak-pi": [
+            3,
+            3
+          ]
+        }
+      }
+    }
+  }
+}

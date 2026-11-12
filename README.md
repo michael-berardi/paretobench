@@ -39,6 +39,30 @@ Stock Pi, Codex CLI, stock DeepSeek Harness, Steak DSH 0.3.3, Steak Pi 0.28.5 an
   correct counts carry little weight; the two misses were both on the same task (L6). Codex CLI ran stock with an
   empty home on a model it was not built for, and its turn count is a lower bound.
 
+**Quality, speed and cost together, 2026-11-12.** Stock Pi, Codex CLI, stock DeepSeek Harness, Steak DSH 0.5.0 and
+Steak Pi 0.29.0, each with no flags, on DeepSeek V4.1 Flash, three repeats, paired. Ratios are against stock Pi; below
+1.00 is cheaper or faster. Rows: [short](benchmarks/2026-11-12-triple-deepseek-short),
+[long](benchmarks/2026-11-12-triple-deepseek-long-v1),
+[long, reasoning off](benchmarks/2026-11-12-triple-deepseek-long-v1-reasoning-off).
+
+| Harness | Short: correct | Short: cost | Short: time | Long: correct | Long: cost | Long: time |
+|---|---|---|---|---|---|---|
+| Stock Pi | 60/60 | 1.00 | 1.00 | 33/33 | 1.00 | 1.00 |
+| Steak Pi | 60/60 | 1.04 (0.94 to 1.15) | 1.10 (0.88 to 1.37) | 33/33 | 0.85 (0.74 to 1.03) | 0.83 (0.64 to 1.09) |
+| Steak DSH | 60/60 | 1.05 (0.95 to 1.18) | 1.09 (0.86 to 1.39) | 31/33 | 1.07 (0.83 to 1.36) | 1.03 (0.82 to 1.31) |
+| Stock DeepSeek Harness | 60/60 | 1.64 (1.46 to 1.82) | 1.37 (1.06 to 1.73) | 33/33 | 1.73 (1.23 to 2.58) | 1.47 (1.02 to 2.08) |
+| Codex CLI | 60/60 | 2.24 (1.88 to 2.62) | 1.58 (1.28 to 1.94) | 32/33 | 1.81 (1.40 to 2.21) | 2.45 (1.72 to 3.65) |
+
+- Steak Pi and Steak DSH are level with stock Pi on all three axes: no interval excludes 1.00, and no quality
+  difference excludes zero. Stock DeepSeek Harness and Codex CLI are worse than stock Pi on cost and on time.
+- Steak DSH against stock DeepSeek Harness: 0.64 times the cost on short tasks (0.58 to 0.72) and, on long tasks, 0.62
+  times the cost (0.43 to 0.90) and 0.70 times the time (0.53 to 0.93), with 31 of 33 correct against 33 of 33. Both
+  misses were one task (L6); eight more repeats of it gave Steak DSH 8 of 8.
+- Quality: to move correctness off the ceiling the long set was run with reasoning switched off. Correct out of 33:
+  Codex CLI 32, Steak Pi 31, stock Pi 30, Steak DSH 29, stock DeepSeek Harness 28. No paired difference excludes zero
+  (the intervals are about 15 points either way), so this does not rank the harnesses on quality.
+- One model, one machine, one benchmark at a time. Time is comparable within a run, not across runs.
+
 **A second model, all six harnesses, 2026-11-12.** Claude Haiku 5.5 on a per-token route, short set, three repeats
 ([rows](benchmarks/2026-11-12-harness-haiku-openrouter-short)).
 

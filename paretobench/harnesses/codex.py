@@ -52,11 +52,23 @@ def version(ex):
                           timeout=60).stdout.strip()
 
 
+def wire_effort(d):
+    """The effort value to send. The model's own route may spell a level differently on the wire (its
+    reasoningEfforts map, for example off -> none); Codex passes the value through, so the wire spelling is used."""
+    effort = d.get("reasoningEffort") or "medium"
+    for model in d["route"].get("models") or []:
+        if isinstance(model, dict) and model.get("id") == d["model"]:
+            mapped = (model.get("reasoningEfforts") or {}).get(effort)
+            if isinstance(mapped, str) and mapped:
+                return mapped
+    return effort
+
+
 def config_toml(mcfg):
     d, env_key = _route(mcfg)
     return f'''model = {json.dumps(d["model"])}
 model_provider = {json.dumps(PROVIDER)}
-model_reasoning_effort = {json.dumps(d.get("reasoningEffort") or "medium")}
+model_reasoning_effort = {json.dumps(wire_effort(d))}
 approval_policy = "never"
 sandbox_mode = "workspace-write"
 

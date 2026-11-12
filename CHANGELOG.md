@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 - 2026-11-12
+
+- The `codex` arm sends the reasoning effort in the route's own wire spelling (its `reasoningEfforts` map, for example
+  `off` as `none`). The route refused the unmapped word, so a model entry with reasoning off could not run this arm.
+- Published results on three axes (correct, cost, time): five harnesses with no flags on the short set, the long set,
+  and the long set with reasoning off, in `benchmarks/2026-11-12-triple-deepseek-*`.
+
 ## 0.4.1 - 2026-11-12
 
 - A run killed at the hard timeout now keeps its raw event stream under `PB_LOG_DIR`, like every other run. It used to

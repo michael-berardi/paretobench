@@ -357,6 +357,20 @@ class TestCodexArm(unittest.TestCase):
         del self.m["dsh"]["reasoningEffort"]
         self.assertIn('model_reasoning_effort = "medium"', self.a.config_toml(self.m))
 
+    def test_effort_uses_the_routes_wire_spelling(self):
+        # A route may spell a level differently on the wire (off -> none). Codex passes the value through, and the
+        # route refused the unmapped word, so the adapter sends the mapped one.
+        self.m["dsh"]["reasoningEffort"] = "off"
+        self.m["dsh"]["route"]["models"] = [{"id": self.m["dsh"]["model"], "reasoningEfforts": {"off": "none", "high": "high"}}]
+        self.assertIn('model_reasoning_effort = "none"', self.a.config_toml(self.m))
+        self.m["dsh"]["reasoningEffort"] = "high"
+        self.assertIn('model_reasoning_effort = "high"', self.a.config_toml(self.m))
+        # No map for this model, or a null mapping: the configured word is sent unchanged.
+        self.m["dsh"]["route"]["models"] = [{"id": "another", "reasoningEfforts": {"high": "max"}}]
+        self.assertIn('model_reasoning_effort = "high"', self.a.config_toml(self.m))
+        self.m["dsh"]["route"]["models"] = [{"id": self.m["dsh"]["model"], "reasoningEfforts": {"high": None}}]
+        self.assertIn('model_reasoning_effort = "high"', self.a.config_toml(self.m))
+
     def test_validate_errors(self):
         with self.assertRaises(C.PBError) as cm:
             self.a.validate(self.m, dict(self.ex, codex_bin=""))
