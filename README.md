@@ -18,9 +18,52 @@ Python 3.11+ standard library only. No dependencies. MIT license. By [Pareto Cyb
 ## Results, 2026-11-11
 
 Twenty small Python tasks, hidden deterministic checkers, every run on a fresh fixture. Raw rows and full summaries
-are in [benchmarks/](benchmarks).
+are in [benchmarks/](benchmarks). The same results are on the
+[Pareto Cybernetics benchmarks page](https://paretocybernetics.com/benchmarks/).
 
-**ParetoBench Harness, DeepSeek V4.1 Flash** (240 runs, three repeats)
+Highlights:
+
+- On Qwen 4 Max, Steak Pi was the cheapest and fastest harness: 0.67× the weighted tokens of stock DeepSeek
+  Harness (95% interval 0.60 to 0.74) and 0.67× the time, 100 of 100 correct, on both Pareto frontiers.
+- Steak DSH beat stock DeepSeek Harness on the same model: 0.70× the weighted tokens on Qwen 4 Max (0.62 to 0.78)
+  and 0.84× the cost on DeepSeek V4.1 Flash (0.76 to 0.93), every run correct.
+- Against Claude Code on Claude Haiku 5.5, Steak Pi solved 40 of 40 to Claude Code's 39 of 40, was cheaper in
+  35 of 40 paired runs and sent about half the input tokens (0.49×).
+- The Pi family led on short DeepSeek tasks: stock Pi, the base Steak Pi is built on, had the lowest cost and
+  time of the four harnesses.
+
+**Qwen 4 Max: Steak Pi and Steak DSH against stock DSH** (300 runs, five repeats, legacy-steak-dsh-bench task
+set; flat plan, so cost is in weighted tokens per correct run)
+
+| Harness | Correct | Weighted tokens | Median time | vs stock DSH (95% interval) |
+|---|---|---|---|---|
+| Steak Pi 0.25.7 | 100/100 | 12,807 | 30.9 s | 0.67 (0.60 to 0.74), better, on both frontiers |
+| Steak DSH 0.1.0 | 100/100 | 13,395 | 42.1 s | 0.70 (0.62 to 0.78), better |
+| DeepSeek Harness 0.2.2-rc.1 (stock) | 100/100 | 19,248 | 48.1 s | 1.00 |
+
+**DeepSeek V4.1 Flash: Steak DSH against stock DSH** (same 300-run launch set)
+
+| Harness | Correct | Cost per run | Median time | Cost vs stock DSH (95% interval) |
+|---|---|---|---|---|
+| Steak DSH 0.1.0 | 100/100 | $0.00089 | 17.5 s | 0.84 (0.76 to 0.93), better, on both frontiers |
+| Steak Pi 0.25.7 | 100/100 | $0.00121 | 18.2 s | 1.14 (0.99 to 1.29), no clear difference |
+| DeepSeek Harness 0.2.2-rc.1 (stock) | 100/100 | $0.00106 | 18.9 s | 1.00 |
+
+In the 60-pair ParetoBench run below, Steak DSH was again cheaper than stock DSH (0.92×, 0.81 to 1.06); over all
+160 pairs it is 0.87× (0.80 to 0.94).
+
+**ParetoBench Harness, Claude Haiku 5.5** (80 runs, two repeats)
+
+| Harness | Correct | Cost per run | Median time | Cost vs Claude Code (95% interval) |
+|---|---|---|---|---|
+| Steak Pi 0.25.7 | 40/40 | $0.00233 | 19.4 s | 0.80 (0.56 to 1.17), cheaper in 35 of 40 pairs |
+| Claude Code 2.1.322 | 39/40 | $0.00291 | 11.4 s | 1.00 |
+
+Steak Pi sent 0.49× the input tokens and 0.65× the output tokens of Claude Code. A second 80-run comparison on the
+launch task set gave 0.78× (0.61 to 1.04), cheaper in 38 of 40 pairs. Both intervals cross 1.00, so the strict
+verdict is no clear difference. Claude Code was faster per run.
+
+**ParetoBench Harness, DeepSeek V4.1 Flash, short tasks** (240 runs, three repeats)
 
 | Harness | Correct | Cost per run | Median time | Cost vs stock Pi (95% interval) |
 |---|---|---|---|---|
@@ -29,12 +72,9 @@ are in [benchmarks/](benchmarks).
 | DeepSeek Harness 0.2.2-rc.1 (stock) | 60/60 | $0.00095 | 20.4 s | 1.59 (1.44 to 1.74) |
 | Steak Pi 0.25.7 | 60/60 | $0.00122 | 22.5 s | 2.04 (1.71 to 2.37) |
 
-**ParetoBench Harness, Claude Haiku 5.5** (80 runs, two repeats)
-
-| Harness | Correct | Cost per run | Median time | Cost vs Claude Code (95% interval) |
-|---|---|---|---|---|
-| Claude Code 2.1.322 | 39/40 | $0.00291 | 11.4 s | 1.00 |
-| Steak Pi 0.25.7 | 40/40 | $0.00233 | 19.4 s | 0.80 (0.56 to 1.17), no clear difference |
+Every harness solved every task. Stock Pi, the base Steak Pi builds on, was the cheapest and fastest. Steak Pi's
+parallel workers, compaction and checks are built for long sessions; a 20-second task pays their prompt cost
+without using them.
 
 **ParetoBench Model, on Steak Pi 0.25.7** (180 runs, three repeats). One model is on a flat plan, so models are
 compared in weighted tokens (input 1, cached input 0.1, cache write 1.25, output 4).
@@ -45,9 +85,8 @@ compared in weighted tokens (input 1, cached input 0.1, cache write 1.25, output
 | Claude Haiku 5.5 | 58/60 | 17,533 | $0.134 | 17.4 s, time frontier |
 | DeepSeek V4.1 Flash | 60/60 | 17,806 | $0.074 | 18.2 s, time frontier |
 
-Every harness and model solved nearly every task, so this task set separates entries on cost and time. It does not
-show which one can solve harder problems. Tasks are short (a run is 15 to 40 seconds): features built for long
-sessions cost tokens here and cannot pay back.
+Steak Pi held 178 of 180 runs correct across three model families. These tasks are short (a run is 15 to 40
+seconds), so they separate entries on cost and time, not on which one can solve harder problems.
 
 ## Install
 

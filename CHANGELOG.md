@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1 - 2026-11-11
+
+- README results lead with the highlights: Steak Pi and Steak DSH against stock DeepSeek Harness on
+  Qwen 4 Max and DeepSeek V4.1 Flash, and Steak Pi against Claude Code on Claude Haiku 5.5. Adds the
+  launch-run tables from `benchmarks/2026-11-11-steak-dsh-launch`. Every figure is unchanged and matches
+  the published summaries; the short-task DeepSeek table keeps its context.
+
 ## 0.2.0 - 2026-11-11
 
 - One-step installers: `scripts/install.sh` (macOS, Linux) and `scripts/install.ps1` (Windows,
