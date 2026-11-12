@@ -128,12 +128,26 @@ LINUX
   grep -q "LINUX-NOPY-OK" "$WORK/linux-nopy.log" || fail "Linux absent-Python test"
 
   say "PowerShell 7 container: install, version, upgrade, corrupted archive"
+# mcr.microsoft.com/powershell publishes no arm64 Linux image (amd64 and 32-bit arm only), so the
+# PowerShell 7 tests run in a small local image: ubuntu:24.04 plus Microsoft's official tarball.
+PS_VERSION=7.4.6
+PWSH_IMAGE="pwsh-install-test:$PS_VERSION"
+if ! docker image inspect "$PWSH_IMAGE" >/dev/null 2>&1; then
+  docker build -q -t "$PWSH_IMAGE" - >/dev/null <<DOCKERFILE || fail "cannot build the PowerShell $PS_VERSION test image"
+FROM ubuntu:24.04
+RUN apt-get update -qq && apt-get install -y -qq ca-certificates curl libicu74 >/dev/null \\
+ && case "\$(uname -m)" in aarch64) a=arm64 ;; x86_64) a=x64 ;; *) echo "unsupported CPU \$(uname -m)" >&2; exit 1 ;; esac \\
+ && curl -fsSL --retry 3 -o /tmp/ps.tgz "https://github.com/PowerShell/PowerShell/releases/download/v$PS_VERSION/powershell-$PS_VERSION-linux-\$a.tar.gz" \\
+ && mkdir -p /opt/powershell && tar -xzf /tmp/ps.tgz -C /opt/powershell && chmod +x /opt/powershell/pwsh \\
+ && ln -s /opt/powershell/pwsh /usr/bin/pwsh && rm /tmp/ps.tgz
+DOCKERFILE
+fi
   cat > "$WORK/ps-test.ps1" <<'PWSH'
 $ErrorActionPreference = 'Stop'
 $env:DEBIAN_FRONTEND = 'noninteractive'
 & apt-get update -qq *> $null
-& apt-get install -y -qq --no-install-recommends python3.11 *> $null
-if ($LASTEXITCODE -ne 0) { throw 'cannot install python3.11 in the container' }
+& apt-get install -y -qq --no-install-recommends python3 *> $null
+if ($LASTEXITCODE -ne 0) { throw 'cannot install python3 in the container' }
 $env:PARETOBENCH_RELEASE_BASE = "$env:TEST_BASE/release"
 & /rel/release/install.ps1
 $v = (& /root/.local/bin/paretobench --version | Out-String).Trim()
@@ -152,15 +166,14 @@ if (-not $failed) { throw 'corrupted archive was accepted' }
 if (Test-Path '/tmp/h2/app') { throw 'corrupted install left files behind' }
 Write-Host 'PWSH-OK'
 PWSH
-  # The PowerShell image publishes no arm64 variant; run the amd64 one under emulation.
-  docker run --rm --platform linux/amd64 --name paretobench-pwsh --add-host=host.docker.internal:host-gateway \
-    -e TEST_BASE="$BASE_DOCKER" -v "$ROOT/dist:/rel:ro" mcr.microsoft.com/powershell \
+  docker run --rm --name paretobench-pwsh --add-host=host.docker.internal:host-gateway \
+    -e TEST_BASE="$BASE_DOCKER" -v "$ROOT/dist:/rel:ro" "$PWSH_IMAGE" \
     pwsh -NoProfile -File /rel/install-test/ps-test.ps1 | tee "$WORK/pwsh.log"
   grep -q "PWSH-OK" "$WORK/pwsh.log" || fail "PowerShell container tests"
 
   say "PSScriptAnalyzer (skipped with a note if it does not install quickly)"
   set +e
-  docker run --rm --platform linux/amd64 --name paretobench-psa -v "$ROOT/dist:/rel:ro" mcr.microsoft.com/powershell \
+  docker run --rm --name paretobench-psa -v "$ROOT/dist:/rel:ro" "$PWSH_IMAGE" \
     pwsh -NoProfile -Command '
       try {
         $j = Start-Job { Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop }
