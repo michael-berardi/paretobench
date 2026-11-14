@@ -146,6 +146,14 @@ Exact commands (prompt last, cwd is the fresh fixture):
   uncached input is `input_tokens - cached_input_tokens`. Tool calls are every completed item that is not an agent
   message, reasoning, error or todo list. Codex reports usage per user turn, not per model request, so the turns
   column is tools + 1, a lower bound on model requests; do not compare it with turns of other arms as an exact count.
+- codex on a Claude Code subscription model (`dsh.provider` is `claude-code`, no `route`, no `key`): there is no
+  endpoint, so the arm needs a bridge you supply and name with `PB_CODEX_BRIDGE`. ParetoBench does not ship one and
+  stops with `codex-bridge-unset` (or `codex-bridge-missing` if the file does not exist) and `node-missing` without
+  node. The contract: `node <bridge> exec --model <dsh.model> --effort <dsh.reasoningEffort or medium> -- <codex
+  command above>`. The bridge listens on a random loopback port, writes `CODEX_HOME/config.toml` so Codex's provider
+  points at it, serves the Responses API by sending each request through the user's Claude Code login, runs the codex
+  command and exits with its exit code. Stock `dsh` cannot run on such a model and is refused with
+  `harness-unavailable-for-model`.
 - steak-dsh-long: the steak-dsh command plus `--patch <long.patch.yml>` after the bundle patch, where
   `long.patch.yml` is looked up beside `PB_STEAK_DSH_PATCH`. A bundle without it stops the run before anything
   starts with the named error `steak-dsh-long-patch-missing`.

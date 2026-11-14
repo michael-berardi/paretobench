@@ -117,8 +117,8 @@ def _need(cond, name, msg):
 
 
 # The Claude Code subscription route: requests run through the logged-in Claude Code CLI, so there is no
-# per-token route and no key. Steak DSH carries the route; the codex arm reaches it through Steak DSH's
-# codex-bridge; stock dsh has no such route.
+# per-token route and no key. Steak DSH carries the route; the codex arm needs a bridge the user supplies
+# (PB_CODEX_BRIDGE); stock dsh has no such route.
 SUBSCRIPTION_PROVIDER = "claude-code"
 
 
@@ -226,6 +226,7 @@ def resolve_executables():
         "codex_bin": os.path.expanduser(os.environ.get("PB_CODEX_BIN") or shutil.which("codex") or ""),
         "steak_pi_package": os.path.expanduser(os.environ.get("PB_STEAK_PI_PACKAGE") or ""),
         "steak_dsh_patch": os.path.expanduser(os.environ.get("PB_STEAK_DSH_PATCH") or ""),
+        "codex_bridge": os.path.expanduser(os.environ.get("PB_CODEX_BRIDGE") or ""),
         "pi_agent_dir": os.path.expanduser(os.environ.get("PB_PI_AGENT_DIR") or "~/.pi/agent"),
     }
 

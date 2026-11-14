@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.5.0 - 2026-11-14
+
+- Models on a Claude Code subscription (`dsh.provider` `claude-code`, no `route`, no `key`) can run the `steak-dsh`
+  and `codex` arms. Stock `dsh` is refused on them with `harness-unavailable-for-model`. The runner injects no key
+  for such a model.
+- The `codex` arm on a subscription model needs a bridge you supply: set `PB_CODEX_BRIDGE` to its script. ParetoBench
+  ships none. Unset stops the arm with `codex-bridge-unset`; a path that is not a file stops it with
+  `codex-bridge-missing`; no `node` stops it with `node-missing`. The contract is in `docs/METHODOLOGY.md`.
+- Fixed the `codex` arm's accounting: Codex counts cache writes inside `input_tokens`, and only the reads were
+  subtracted, so cache writes were counted twice (once as uncached input). Rows from 0.4.2 and earlier with cache
+  writes overstate uncached input.
+- Published results: five harnesses on Claude Sonnet 5.5 through a subscription, short set, in
+  `benchmarks/2026-11-14-harness-sonnet-short/`. 300 of 300 runs correct. Stock Pi and stock DeepSeek Harness were not
+  run: neither can use a subscription route.
+
 ## 0.4.2 - 2026-11-12
 
 - The `codex` arm sends the reasoning effort in the route's own wire spelling (its `reasoningEfforts` map, for example

@@ -28,6 +28,7 @@ def make_ex(d):
     with open(patch, "w") as f:
         f.write("- id: x\n")
     ex["steak_dsh_patch"] = patch
+    ex["codex_bridge"] = ""
     agent = os.path.join(d, "agent")
     os.makedirs(agent)
     with open(os.path.join(agent, "auth.json"), "w") as f:
@@ -488,6 +489,7 @@ class TestSubscriptionRoute(unittest.TestCase):
         os.makedirs(bridge)
         self.bridge = os.path.join(bridge, "bridge.mjs")
         open(self.bridge, "w").close()
+        self.ex["codex_bridge"] = self.bridge
 
     def test_config_accepts_routeless_claude_code_model(self):
         self.assertTrue(C.is_subscription(sub_mcfg()))
@@ -513,8 +515,24 @@ class TestSubscriptionRoute(unittest.TestCase):
         self.assertEqual(argv[8:], [self.ex["codex_bin"], "exec", "--json", "--skip-git-repo-check", "--ephemeral", PROMPT])
         self.assertEqual(env, {"CODEX_HOME": lane["codex_home"]})
 
+    def test_codex_bridge_unset_is_a_named_error(self):
+        with self.assertRaises(C.PBError) as cm:
+            H.get_adapter("codex").validate(sub_mcfg(), dict(self.ex, codex_bridge=""))
+        self.assertEqual(cm.exception.name, "codex-bridge-unset")
+
     def test_codex_bridge_missing(self):
         os.remove(self.bridge)
         with self.assertRaises(C.PBError) as cm:
             H.get_adapter("codex").validate(sub_mcfg(), self.ex)
         self.assertEqual(cm.exception.name, "codex-bridge-missing")
+
+    def test_resolve_executables_reads_pb_codex_bridge(self):
+        old = os.environ.get("PB_CODEX_BRIDGE")
+        os.environ["PB_CODEX_BRIDGE"] = "/x/bridge.mjs"
+        try:
+            self.assertEqual(C.resolve_executables()["codex_bridge"], "/x/bridge.mjs")
+        finally:
+            if old is None:
+                del os.environ["PB_CODEX_BRIDGE"]
+            else:
+                os.environ["PB_CODEX_BRIDGE"] = old

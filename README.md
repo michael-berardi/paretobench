@@ -16,6 +16,28 @@ one strictly better. A second frontier covers correct rate vs time. Verdicts are
 
 Python 3.11+ standard library only. No dependencies. MIT license. By [Pareto Cybernetics](https://paretocybernetics.com).
 
+## Results, 2026-11-14: five harnesses on Claude Sonnet 5.5 (subscription)
+
+Claude Code, Codex CLI, Steak DSH, Steak Pi 0.29.0 and Steak Pi run lean, all on Claude Sonnet 5.5 through one Claude
+Code login, short set, three repeats, paired on task and repeat. Cost is list price, an estimate on a subscription.
+Ratios are against Claude Code; below 1.00 is cheaper or faster. Rows and write-up:
+[rows](benchmarks/2026-11-14-harness-sonnet-short).
+
+| Harness | Correct | Cost vs Claude Code (95%) | Time vs Claude Code (95%) |
+|---|---|---|---|
+| Claude Code | 60/60 | 1.00 | 1.00 |
+| Codex CLI | 60/60 | 0.69 (0.64 to 0.74), better | 0.89 (0.83 to 0.95) |
+| Steak DSH | 60/60 | 0.63 (0.57 to 0.71), better | 1.11 (1.05 to 1.18) |
+| Steak Pi | 60/60 | 0.48 (0.44 to 0.52), better | 0.96 (0.89 to 1.03) |
+| Steak Pi, lean | 60/60 | 0.49 (0.45 to 0.53), better | 0.95 (0.88 to 1.02) |
+
+- Every arm solved every task, so correctness does not separate them. Steak Pi was cheapest ($0.0097 per run at list
+  price); Codex CLI had the lowest median time (8.4 s against 9.4 s for Claude Code).
+- Codex CLI ran through a local bridge onto the same login; the bridge is not published. The arm needs a bridge you
+  supply (`PB_CODEX_BRIDGE`).
+- Not run: stock Pi and stock DeepSeek Harness, which cannot use a subscription route. One model, short set at
+  ceiling, three repeats.
+
 ## Results, 2026-11-12: six harnesses on one model
 
 Stock Pi, Codex CLI, stock DeepSeek Harness, Steak DSH 0.3.3, Steak Pi 0.28.5 and Steak Pi run lean
@@ -256,6 +278,8 @@ No machine-specific path or secret lives in this repo.
   list, per-harness settings (`pi` model args, optional `steak_pi_extra`, `claude` args, a `dsh` route,
   `key.auth`/`key.env`) and one `rates` table applied to every harness.
 - Executables come from env with PATH defaults: `PB_PI_BIN`, `PB_DSH_BIN`, `PB_CLAUDE_BIN`, `PB_CODEX_BIN`,
+  `PB_CODEX_BRIDGE` (only for the codex arm on a Claude Code subscription model: a bridge script you supply, see
+  docs/METHODOLOGY.md; unset stops that arm with `codex-bridge-unset`),
   `PB_STEAK_PI_PACKAGE` (the Steak Pi package dir), `PB_STEAK_DSH_PATCH` (the bundle's cordis.patch.yml),
   `PB_PI_AGENT_DIR` (where auth.json/models.json are read; default `~/.pi/agent`).
 - `~/.config/paretobench/env` (KEY=VALUE lines) is loaded by the CLI when present, so machine paths stay

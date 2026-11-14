@@ -8,9 +8,10 @@ no new config keys. The key is never written to the config; the runner puts it i
 the route's apiKeyEnv (this adapter sets needs_key).
 
 On a Claude Code subscription model (`dsh.provider` "claude-code", no route) there is no endpoint and no key: the
-command runs under Steak DSH's `codex-bridge/bridge.mjs` (next to PB_STEAK_DSH_PATCH), a loopback Responses endpoint
-that sends each request through the same Claude Code module as the steak-dsh arm, on the user's Claude Code login.
-The bridge writes the lane's config.toml itself; Codex, its prompts and its tools are unchanged.
+command runs under a bridge the user supplies and names with PB_CODEX_BRIDGE (ParetoBench does not ship one): a
+loopback Responses endpoint that sends each request onto the user's Claude Code login. ParetoBench runs
+`node <bridge> exec --model M --effort E -- <codex command>`; the bridge writes the lane's config.toml itself.
+Codex, its prompts and its tools are unchanged. See docs/METHODOLOGY.md for the contract.
 
 Usage: Codex counts cached reads and cache writes inside input_tokens, so uncached input =
 input_tokens - cached_input_tokens - cache_write_input_tokens.
@@ -34,11 +35,13 @@ NON_TOOL_ITEMS = ("agent_message", "reasoning", "error", "todo_list")
 
 
 def bridge_path(ex):
-    patch = ex.get("steak_dsh_patch") or ""
-    p = os.path.join(os.path.dirname(patch), "codex-bridge", "bridge.mjs") if patch else ""
-    if not p or not os.path.isfile(p):
-        raise PBError("codex-bridge-missing",
-                      f"{p or '(PB_STEAK_DSH_PATCH not set)'} (the Claude Code route needs Steak DSH's codex-bridge)")
+    p = ex.get("codex_bridge") or ""
+    if not p:
+        raise PBError("codex-bridge-unset",
+                      "set PB_CODEX_BRIDGE to a bridge script you supply; the Claude Code subscription route has "
+                      "no endpoint for Codex without one")
+    if not os.path.isfile(p):
+        raise PBError("codex-bridge-missing", f"{p} (PB_CODEX_BRIDGE is not a file)")
     return p
 
 
