@@ -7,14 +7,22 @@ object (route baseURL and apiKeyEnv, model, reasoningEffort): a model that can r
 no new config keys. The key is never written to the config; the runner puts it in the child environment under
 the route's apiKeyEnv (this adapter sets needs_key).
 
-Usage: Codex counts cached tokens inside input_tokens, so uncached input = input_tokens - cached_input_tokens.
+On a Claude Code subscription model (`dsh.provider` "claude-code", no route) there is no endpoint and no key: the
+command runs under Steak DSH's `codex-bridge/bridge.mjs` (next to PB_STEAK_DSH_PATCH), a loopback Responses endpoint
+that sends each request through the same Claude Code module as the steak-dsh arm, on the user's Claude Code login.
+The bridge writes the lane's config.toml itself; Codex, its prompts and its tools are unchanged.
+
+Usage: Codex counts cached reads and cache writes inside input_tokens, so uncached input =
+input_tokens - cached_input_tokens - cache_write_input_tokens.
 Codex reports usage per user turn, not per model request, so the request count is not available: turns is
 tools + 1, a LOWER BOUND on model requests (see docs/METHODOLOGY.md).
 """
 import json
 import os
+import shutil
 import subprocess
 
+from .. import config as C
 from ..config import PBError
 from . import RunFail, empty_usage, events_of
 
@@ -23,6 +31,15 @@ family = "codex"
 needs_key = True
 PROVIDER = "bench"
 NON_TOOL_ITEMS = ("agent_message", "reasoning", "error", "todo_list")
+
+
+def bridge_path(ex):
+    patch = ex.get("steak_dsh_patch") or ""
+    p = os.path.join(os.path.dirname(patch), "codex-bridge", "bridge.mjs") if patch else ""
+    if not p or not os.path.isfile(p):
+        raise PBError("codex-bridge-missing",
+                      f"{p or '(PB_STEAK_DSH_PATCH not set)'} (the Claude Code route needs Steak DSH's codex-bridge)")
+    return p
 
 
 def _route(mcfg):
@@ -40,7 +57,14 @@ def _route(mcfg):
 
 
 def validate(mcfg, ex):
-    _route(mcfg)
+    if C.is_subscription(mcfg):
+        if not mcfg["dsh"].get("model"):
+            raise PBError("harness-unavailable-for-model", "codex needs the model's dsh.model")
+        bridge_path(ex)
+        if not shutil.which("node"):
+            raise PBError("node-missing", "the Claude Code route runs the bridge with node")
+    else:
+        _route(mcfg)
     if not ex.get("codex_bin") or not os.path.isfile(ex["codex_bin"]):
         raise PBError("codex-bin-missing", f"{ex.get('codex_bin') or '(not found)'} (set PB_CODEX_BIN)")
 
@@ -83,6 +107,8 @@ wire_api = "responses"
 def setup_lane(ex, mcfg, work, slot, lane_name):
     home = os.path.join(work, "codex-homes", f"{lane_name}-{slot}")
     os.makedirs(home, exist_ok=True)
+    if C.is_subscription(mcfg):
+        return {"codex_home": home, "bridge": bridge_path(ex)}  # the bridge writes config.toml at launch
     with open(os.path.join(home, "config.toml"), "w") as f:
         f.write(config_toml(mcfg))
     return {"codex_home": home}
@@ -90,6 +116,10 @@ def setup_lane(ex, mcfg, work, slot, lane_name):
 
 def build_command(ex, mcfg, prompt, lane, model_patch=None, extra_patches=()):
     argv = [ex["codex_bin"], "exec", "--json", "--skip-git-repo-check", "--ephemeral", prompt]
+    if lane.get("bridge"):
+        d = mcfg["dsh"]
+        argv = ["node", lane["bridge"], "exec", "--model", d["model"],
+                "--effort", d.get("reasoningEffort") or "medium", "--"] + argv
     return argv, {"CODEX_HOME": lane["codex_home"]}
 
 
@@ -104,9 +134,12 @@ def parse(rc, out, err, scrub):
             done = True
             x = e.get("usage") or {}
             cached = x.get("cached_input_tokens", 0) or 0
-            u["i"] += max(0, (x.get("input_tokens", 0) or 0) - cached)
+            written = x.get("cache_write_input_tokens", 0) or 0
+            # input_tokens counts all input: cache reads AND cache writes are inside it (0.4.2 and earlier
+            # subtracted only the reads, so cache writes were billed twice, once as uncached input)
+            u["i"] += max(0, (x.get("input_tokens", 0) or 0) - cached - written)
             u["cr"] += cached
-            u["cw"] += x.get("cache_write_input_tokens", 0) or 0
+            u["cw"] += written
             u["o"] += x.get("output_tokens", 0) or 0
             u["reasoning"] += x.get("reasoning_output_tokens", 0) or 0
         elif t == "item.completed":

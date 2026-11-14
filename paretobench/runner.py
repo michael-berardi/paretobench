@@ -113,7 +113,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
     key_vals = []
     for e in entries:
         e["key_env"] = e["key_val"] = None
-        if getattr(e["adapter"], "needs_key", False):
+        if getattr(e["adapter"], "needs_key", False) and not C.is_subscription(e["mcfg"]):
             ks = e["mcfg"]["key"]
             e["key_env"] = ks["env"]
             e["key_val"] = C.load_auth_key(ex["pi_agent_dir"], ks["auth"])
@@ -187,11 +187,10 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
             sel = {"provider": dsh_cfg["provider"], "model": dsh_cfg["model"]}
             if dsh_cfg.get("reasoningEffort"):
                 sel["reasoningEffort"] = dsh_cfg["reasoningEffort"]
-            patch = [
+            patch = [] if C.is_subscription(e["mcfg"]) else [
                 {"id": "llm-pi-ai", "name": "@deepseek-ai/dsh-llm-pi-ai",
-                 "config": {"providers": {dsh_cfg["provider"]: dsh_cfg["route"]}}},
-                {"id": "agent-default-model", "name": "@deepseek-ai/dsh-agent-default-model", "config": sel},
-            ]
+                 "config": {"providers": {dsh_cfg["provider"]: dsh_cfg["route"]}}}]
+            patch.append({"id": "agent-default-model", "name": "@deepseek-ai/dsh-agent-default-model", "config": sel})
             with open(pf, "w") as f:
                 f.write(C.to_yaml(patch))
             patch_files[e["model"]] = pf

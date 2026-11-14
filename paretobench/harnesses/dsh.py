@@ -4,6 +4,7 @@ import shutil
 import subprocess
 import tempfile
 
+from .. import config as C
 from ..config import PBError
 from . import RunFail, events_of, empty_usage
 
@@ -13,9 +14,20 @@ needs_key = True  # the runner puts the model's key into the child environment
 
 
 def validate(mcfg, ex):
+    _validate(mcfg, ex)
+    if C.is_subscription(mcfg):
+        raise PBError("harness-unavailable-for-model",
+                      f"stock dsh has no '{C.SUBSCRIPTION_PROVIDER}' route (it ships with Steak DSH)")
+
+
+def _validate(mcfg, ex):
     if not ex.get("dsh_bin") or not os.path.isfile(ex["dsh_bin"]):
         raise PBError("dsh-bin-missing", f"{ex.get('dsh_bin') or '(not found)'} (set PB_DSH_BIN)")
     d = mcfg.get("dsh")
+    if C.is_subscription(mcfg):
+        if not d.get("model"):
+            raise PBError("harness-unavailable-for-model", "model has no dsh model")
+        return
     if not isinstance(d, dict) or not d.get("provider") or not d.get("model") or not d.get("route"):
         raise PBError("harness-unavailable-for-model", "model has no dsh route")
     k = mcfg.get("key") or {}

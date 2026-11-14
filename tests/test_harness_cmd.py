@@ -412,6 +412,12 @@ class TestCodexArm(unittest.TestCase):
         self.assertEqual(u["tools"], 2)
         self.assertEqual(u["turns"], 3)  # tools + 1, a lower bound
 
+    def test_parse_cache_writes_are_not_counted_as_uncached_input(self):
+        out = codex_event(type="turn.completed", usage={"input_tokens": 1000, "cached_input_tokens": 600,
+                                                        "cache_write_input_tokens": 300, "output_tokens": 5})
+        u, _ = self.a.parse(0, out, "", lambda s: s)
+        self.assertEqual((u["i"], u["cr"], u["cw"]), (100, 600, 300))
+
     def test_parse_cached_larger_than_input_does_not_go_negative(self):
         out = codex_event(type="turn.completed", usage={"input_tokens": 5, "cached_input_tokens": 9})
         u, _ = self.a.parse(0, out, "", lambda s: s)
@@ -460,3 +466,55 @@ class TestNeedsKey(unittest.TestCase):
             self.assertTrue(H.get_adapter(n).needs_key, n)
         for n in ("pi", "steak-pi", "steak-pi-lean", "claude-code"):
             self.assertFalse(getattr(H.get_adapter(n), "needs_key", False), n)
+
+
+def sub_mcfg():
+    return {"harnesses": ["pi", "steak-pi", "claude-code", "steak-dsh", "codex"],
+            "pi": ["--model", "claude-code/claude-x"], "claude": ["--model", "claude-x"],
+            "dsh": {"provider": "claude-code", "model": "claude-x", "reasoningEffort": "medium"},
+            "rates": {"i": 0, "cr": 0, "cw": 0, "o": 0}}
+
+
+class TestSubscriptionRoute(unittest.TestCase):
+    """A Claude Code subscription model: no route, no key; steak-dsh and codex run, stock dsh does not."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.ex = make_ex(self.tmp.name)
+        self.work = os.path.join(self.tmp.name, "work")
+        os.makedirs(self.work)
+        bridge = os.path.join(self.tmp.name, "codex-bridge")
+        os.makedirs(bridge)
+        self.bridge = os.path.join(bridge, "bridge.mjs")
+        open(self.bridge, "w").close()
+
+    def test_config_accepts_routeless_claude_code_model(self):
+        self.assertTrue(C.is_subscription(sub_mcfg()))
+        self.assertTrue(C.validate_models({"s": sub_mcfg()}))
+        bad = sub_mcfg()
+        bad["harnesses"] = ["dsh"]
+        with self.assertRaises(C.PBError):
+            C.validate_models({"s": bad})
+
+    def test_stock_dsh_refused_steak_dsh_accepted(self):
+        with self.assertRaises(C.PBError) as cm:
+            H.get_adapter("dsh").validate(sub_mcfg(), self.ex)
+        self.assertEqual(cm.exception.name, "harness-unavailable-for-model")
+        H.get_adapter("steak-dsh").validate(sub_mcfg(), self.ex)
+
+    def test_codex_runs_under_the_bridge(self):
+        a = H.get_adapter("codex")
+        a.validate(sub_mcfg(), self.ex)
+        lane = a.setup_lane(self.ex, sub_mcfg(), self.work, 0, "codex")
+        self.assertEqual(os.listdir(lane["codex_home"]), [])  # the bridge writes config.toml
+        argv, env = a.build_command(self.ex, sub_mcfg(), PROMPT, lane)
+        self.assertEqual(argv[:8], ["node", self.bridge, "exec", "--model", "claude-x", "--effort", "medium", "--"])
+        self.assertEqual(argv[8:], [self.ex["codex_bin"], "exec", "--json", "--skip-git-repo-check", "--ephemeral", PROMPT])
+        self.assertEqual(env, {"CODEX_HOME": lane["codex_home"]})
+
+    def test_codex_bridge_missing(self):
+        os.remove(self.bridge)
+        with self.assertRaises(C.PBError) as cm:
+            H.get_adapter("codex").validate(sub_mcfg(), self.ex)
+        self.assertEqual(cm.exception.name, "codex-bridge-missing")

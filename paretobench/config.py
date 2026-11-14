@@ -116,6 +116,17 @@ def _need(cond, name, msg):
         raise PBError(name, msg)
 
 
+# The Claude Code subscription route: requests run through the logged-in Claude Code CLI, so there is no
+# per-token route and no key. Steak DSH carries the route; the codex arm reaches it through Steak DSH's
+# codex-bridge; stock dsh has no such route.
+SUBSCRIPTION_PROVIDER = "claude-code"
+
+
+def is_subscription(m):
+    d = m.get("dsh") if isinstance(m, dict) else None
+    return isinstance(d, dict) and d.get("provider") == SUBSCRIPTION_PROVIDER and not d.get("route")
+
+
 def validate_models(models):
     """Check the models config schema. Raises PBError with a named cause."""
     _need(isinstance(models, dict) and models, "models-config-invalid",
@@ -138,10 +149,15 @@ def validate_models(models):
                       "models-config-invalid", f"{w}: harness '{h}' needs a 'pi' list of model args")
             elif h in ("dsh", "steak-dsh", "steak-dsh-long", "codex"):
                 d = m.get("dsh")
+                sub = is_subscription(m)
                 _need(isinstance(d, dict) and isinstance(d.get("provider"), str)
-                      and isinstance(d.get("model"), str) and isinstance(d.get("route"), dict),
+                      and isinstance(d.get("model"), str) and (sub or isinstance(d.get("route"), dict)),
                       "models-config-invalid",
                       f"{w}: harness '{h}' needs a 'dsh' object with provider, model and route")
+                _need(not (sub and h == "dsh"), "models-config-invalid",
+                      f"{w}: stock dsh has no '{SUBSCRIPTION_PROVIDER}' route (it ships with Steak DSH)")
+                if sub:
+                    continue
                 k = m.get("key")
                 _need(isinstance(k, dict) and isinstance(k.get("auth"), str) and isinstance(k.get("env"), str),
                       "models-config-invalid", f"{w}: harness '{h}' needs key.auth and key.env")

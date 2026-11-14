@@ -22,7 +22,7 @@ def _patch(ex):
 
 
 def validate(mcfg, ex):
-    dsh.validate(mcfg, ex)
+    dsh._validate(mcfg, ex)  # the Claude Code subscription route is part of the Steak DSH bundle
     _patch(ex)
     if os.environ.get("PB_STEAK_DSH_ENV"):
         try:
