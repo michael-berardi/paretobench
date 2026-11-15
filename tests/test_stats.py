@@ -42,6 +42,15 @@ class TestSignTest(unittest.TestCase):
     def test_balanced(self):
         self.assertEqual(ST.sign_test(3, 3), 1.0)
 
+    def test_large_balanced_sample(self):
+        self.assertEqual(ST.sign_test(550, 550), 1.0)
+
+    def test_large_unbalanced_sample(self):
+        p = ST.sign_test(500, 600)
+        self.assertGreater(p, 0.002)
+        self.assertLess(p, 0.004)
+        self.assertEqual(p, ST.sign_test(600, 500))
+
     def test_symmetry(self):
         for b in range(6):
             for c in range(6):

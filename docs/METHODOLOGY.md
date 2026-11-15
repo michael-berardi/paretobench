@@ -101,8 +101,9 @@ fails, and rule 6 holds: a pilot (every arm, two repeats) drops any task that ev
 every arm fails on every repeat. Dropped tasks are listed in `tasks-long/pilot/` (the rows are in `benchmarks/`), and only then is the
 set hashed and published. Status: the pilot ran on 2026-11-12 on one Flash-class model (outcome in `tasks-long/pilot/`). Every
 arm passed every repeat of all eleven tasks (L8 after its prompt was corrected), so by rule 6 no task is admitted on
-that model, the long gate below was not run, and no long-set result is published. The tasks stay in the repository as
-candidates; a pilot on another model decides for that model.
+that model and the long gate below was not run. Later exploratory long-set results are published in
+`benchmarks/` (see [results](RESULTS.md)); those runs do not establish admission under rule 6.
+The tasks remain candidates for quality discrimination; a pilot on another model decides for that model.
 
 ## Controls
 
@@ -143,7 +144,7 @@ Exact commands (prompt last, cwd is the fresh fixture):
   `base_url`, `env_key` and `wire_api = "responses"`), built from the model's `dsh` object (route baseURL and
   apiKeyEnv, model, reasoningEffort) and `key`, so a model that can run the dsh arms can run codex. The key is never in
   the file or argv: the runner puts it in the child environment. Codex counts cached tokens inside `input_tokens`, so
-  uncached input is `input_tokens - cached_input_tokens`. Tool calls are every completed item that is not an agent
+  uncached input subtracts both cache reads and cache writes from `input_tokens`. Tool calls are every completed item that is not an agent
   message, reasoning, error or todo list. Codex reports usage per user turn, not per model request, so the turns
   column is tools + 1, a lower bound on model requests; do not compare it with turns of other arms as an exact count.
 - codex on a Claude Code subscription model (`dsh.provider` is `claude-code`, no `route`, no `key`): there is no
@@ -233,8 +234,7 @@ Any change to a gate is recorded here with its reason before the runs that use i
 
 - 20 small Python tasks. They measure harness overhead and reliability on short tasks, not large-repo skill. The long
   set (`long-v1`) covers that, but it is one generated repository, not a real one, and its hidden checkers see only the
-  final tree. Its pilot found that it does not discriminate on the one model tried (every arm passed everything), so it
-  has no published results.
+  final tree. Its pilot found that it does not discriminate on the one model tried (every arm passed everything), so its later published comparisons do not establish quality discrimination.
 - One machine. Wall time is noisy, especially under parallel runs. Treat time as indicative.
 - Flat-plan models have no dollar price. Their comparisons use weighted tokens, a proxy.
 - A harness can only be compared on models it can run. Claude Code runs Claude models only.
