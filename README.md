@@ -1,11 +1,32 @@
 # ParetoBench
 
+[![Release](https://img.shields.io/github/v/release/michael-berardi/paretobench)](https://github.com/michael-berardi/paretobench/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](#install)
+
 Compare coding-agent harnesses on one model, or models under one harness. For people
 choosing a coding-agent setup, it measures correctness, cost and time on the same tasks,
 with hidden deterministic checkers and fresh fixtures. Reports include paired bootstrap
 intervals and Pareto frontiers for correctness versus cost and time.
 
-Python 3.11+. No runtime dependencies. [MIT license](LICENSE).
+Python 3.11+. No runtime dependencies. By [Pareto Cybernetics](https://paretocybernetics.com).
+
+## Headline results
+
+Claude Sonnet 5.5 subscription, short set, three repeats (2026-11-14). Cost is
+list-price estimation, not subscription billing; ratios compare with Claude Code.
+
+| Harness | Correct | Cost vs Claude Code (95%) | Time vs Claude Code (95%) |
+|---|---|---|---|
+| Claude Code | 60/60 | 1.00 | 1.00 |
+| Codex CLI | 60/60 | 0.69 (0.64 to 0.74), better | 0.89 (0.83 to 0.95) |
+| Steak DSH | 60/60 | 0.63 (0.57 to 0.71), better | 1.11 (1.05 to 1.18) |
+| Steak Pi | 60/60 | 0.48 (0.44 to 0.52), better | 0.96 (0.89 to 1.03) |
+| Steak Pi, lean | 60/60 | 0.49 (0.45 to 0.53), better | 0.95 (0.88 to 1.02) |
+
+Every arm solved every task: this compares cost and time, not harder-task ability.
+Codex needs an unpublished bridge you supply. [Full results and limitations](docs/RESULTS.md)
+and the [live benchmarks page](https://paretocybernetics.com/benchmarks/).
 
 ## Install
 
@@ -21,20 +42,14 @@ Windows (PowerShell 5.1 or 7):
 irm https://github.com/michael-berardi/paretobench/releases/latest/download/install.ps1 | iex
 ```
 
-What it does: downloads the release bundle, verifies its SHA-256 before installing anything, and puts
-`paretobench` (and `pb`) in `~/.local/bin` (`%LOCALAPPDATA%\ParetoBench\bin` on Windows, added to your
-user PATH). The bundle (package, tasks, configs, docs) lives in `~/.paretobench/app`
-(`%LOCALAPPDATA%\ParetoBench\app` on Windows). Needs Python 3.11 or newer already installed; there are
-no dependencies, so no venv is created. If no suitable Python is found the installer names the one-line
-command that installs it (`brew`, `apt`, `winget`) and stops. If `~/.config/paretobench/models.json` does
-not exist yet, the documented example config is copied there; edit it with your own models and routes
-before running a bench. The installer finishes with `paretobench validate` and `paretobench doctor`
-(missing harness executables are reported but do not fail the install).
+Requires Python 3.11+. Downloads the bundle and verifies its SHA-256, installs `paretobench`
+and `pb` in `~/.local/bin` (Windows: `%LOCALAPPDATA%\ParetoBench\bin`), and seeds
+`~/.config/paretobench/models.json` if absent. Edit that config before benchmarking.
+The bundle lives in `~/.paretobench/app` (Windows: `%LOCALAPPDATA%\ParetoBench\app`).
+No sudo or venv. Re-run to update without replacing your config. Remove the bundle
+and shims to uninstall. [Installer details and overrides](scripts/install.sh).
 
-Update: re-run the same one-liner; it upgrades in place and keeps your config. Remove: delete
-`~/.paretobench` (or `%LOCALAPPDATA%\ParetoBench`) and the `paretobench`/`pb` shims in the bin folder.
-No sudo, no shell-profile edits. Overrides: `PARETOBENCH_HOME`, `PARETOBENCH_BIN_DIR`,
-`PARETOBENCH_VERSION` (pin a release), `PARETOBENCH_RELEASE_BASE` (download base, used by tests).
+### From source
 
 From a checkout, `./pb` needs no install. `pip install .` installs the console script only;
 set `PARETOBENCH_TASKS` to the checkout’s `tasks/` directory to use its task sets.
@@ -125,3 +140,5 @@ fake executables (keys never in argv), resume, and stop cleanup with a fake slow
 ## License
 
 MIT, Pareto Cybernetics. See [LICENSE](LICENSE).
+
+Part of [Pareto Cybernetics](https://paretocybernetics.com): free, private, open-source tools for working with AI agents.

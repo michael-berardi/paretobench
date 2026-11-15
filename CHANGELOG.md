@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 - 2026-11-15
+
+- Fixed an overflow in the exact paired sign test for large discordant samples.
+  Integer division now avoids converting the binomial sum to a float before scaling.
+- Moved historical results into `docs/RESULTS.md` without changing their numbers.
+  The README now starts with installation and offline checks, and distinguishes
+  exploratory long-set results from passing the admission gate.
+
 ## 0.5.0 - 2026-11-14
 
 - Models on a Claude Code subscription (`dsh.provider` `claude-code`, no `route`, no `key`) can run the `steak-dsh`
