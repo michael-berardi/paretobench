@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 - 2026-11-20
+
+- **The Steak Pi arm no longer breaks when its pinned release is pruned.** `PB_STEAK_PI_PACKAGE` pointing at a release
+  directory that no longer exists (Steak Pi keeps only recent releases) now falls back to the Steak Pi package the
+  operator's own Pi loads (`packages` in the Pi agent dir's `settings.json`), instead of failing every run with
+  `steak-pi-package-missing`. A pin that exists still wins; nothing usable is still that named error. Four tests.
+
 ## 0.6.0 - 2026-11-19
 
 - **Local models.** A model entry can carry a `serve` block (`start`, optional `stop`, and a `timeout` for `start`) that
