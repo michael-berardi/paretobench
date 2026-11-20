@@ -164,6 +164,15 @@ def validate_models(models):
             elif h == "claude-code":
                 _need(isinstance(m.get("claude"), list) and all(isinstance(a, str) for a in m["claude"]),
                       "models-config-invalid", f"{w}: harness 'claude-code' needs a 'claude' list of model args")
+        if "serve" in m:
+            sv = m["serve"]
+            _need(isinstance(sv, dict) and isinstance(sv.get("start"), list) and sv["start"]
+                  and all(isinstance(a, str) for a in sv["start"])
+                  and all(isinstance(sv.get(k), list) and all(isinstance(a, str) for a in sv[k]) for k in ("stop",) if k in sv)
+                  and set(sv) <= {"start", "stop", "timeout"}
+                  and (not isinstance(sv.get("timeout"), bool) and isinstance(sv.get("timeout", 600), (int, float)) and sv.get("timeout", 600) > 0),
+                  "models-config-invalid",
+                  f"{w}: serve must be {{\"start\": [argv...], \"stop\": [argv...] (optional), \"timeout\": seconds (optional)}}")
         if "steak_pi_extra" in m:
             _need(isinstance(m["steak_pi_extra"], list) and all(isinstance(a, str) for a in m["steak_pi_extra"]),
                   "models-config-invalid", f"{w}: steak_pi_extra must be a list of strings")

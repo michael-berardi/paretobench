@@ -262,3 +262,13 @@ a new hash and starts a new results series. Never edit a task set under publishe
 Every row carries `task_set` (the hash of the task files) and `pb_version`. A changed task set starts a new
 results series. The report refuses to mix task sets. Legacy steak-dsh rows without a hash are treated as
 the set `legacy-steak-dsh-bench`, and a results dir may hold that one legacy set.
+
+## Local models
+
+A model served on the same machine (a GGUF behind llama-server, for example) is configured like any other model, with
+a `serve` block whose `start` and `stop` commands bring its server up and down. The runner keeps each served model's
+rows together as one block and alternates the task order between repeats inside the block, instead of interleaving
+models: a machine runs one model server at a time, so interleaving would reload weights on every row. Paired
+statistics are unchanged (pairs are matched on task and repeat). Rates are 0, so reports compare weighted tokens and
+time. A local model's speed depends on what else the machine is doing; run the arms of one comparison back to back
+and report the machine.

@@ -294,14 +294,26 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
                 done.add((ename, r.get("model"), r["task"], r["rep"]))
 
     entry_list = list(entries)
+    # A model with a "serve" block (a local model server) is brought up before its rows and stopped after them, and
+    # models that need different servers cannot interleave: one machine holds one model server at a time. Its rows run
+    # as a block, still in a balanced order of tasks within the block; entries with no serve block keep the
+    # interleaved order (a hosted route is always up).
+    served = [e for e in entry_list if e["mcfg"].get("serve")]
+    unserved = [e for e in entry_list if not e["mcfg"].get("serve")]
     jobs = []
     for rep in range(reps):
         for ti, t in enumerate(names):
-            order = entry_list[(rep + ti) % len(entry_list):] + entry_list[:(rep + ti) % len(entry_list)]
+            order = unserved[(rep + ti) % len(unserved):] + unserved[:(rep + ti) % len(unserved)] if unserved else []
             for e in order:
                 if (e["name"], e["model"], t, rep) not in done:
                     jobs.append((rep, t, e))
-    if not jobs:
+    served_blocks = []
+    for e in served:
+        block = [(rep, t, e) for rep in range(reps) for t in (names if rep % 2 == 0 else list(reversed(names)))
+                 if (e["name"], e["model"], t, rep) not in done]
+        if block:
+            served_blocks.append((e, block))
+    if not jobs and not served_blocks:
         print(f"nothing to do: all {len(done)} requested rows already in {out_path}", flush=True)
         return out_path
 
@@ -368,14 +380,46 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
             print(f"warm-up failed for {e['name']} lane {k}: {err}", file=sys.stderr, flush=True)
         return e["name"], err
 
-    with ThreadPoolExecutor(par * len(entry_list)) as pool:
-        warmed = list(pool.map(warm, [(e, k) for e in entry_list for k in range(par)]))
-    # An arm that cannot answer one trivial request is misconfigured: stop before it
-    # fills the results with failures.
-    for e in entry_list:
-        errs = [err for n, err in warmed if n == e["name"]]
-        if errs and all(errs):
-            _die("arm-cannot-run", f"every warm-up of arm '{e['name']}' failed: {errs[0]}")
-    with ThreadPoolExecutor(par * len(entry_list)) as pool:
-        list(pool.map(job, jobs))
+    def warm_and_check(group):
+        with ThreadPoolExecutor(par * len(group)) as pool:
+            warmed = list(pool.map(warm, [(e, k) for e in group for k in range(par)]))
+        # An arm that cannot answer one trivial request is misconfigured: stop before it
+        # fills the results with failures.
+        for e in group:
+            errs = [err for n, err in warmed if n == e["name"]]
+            if errs and all(errs):
+                _die("arm-cannot-run", f"every warm-up of arm '{e['name']}' failed: {errs[0]}")
+
+    if jobs:
+        group = [e for e in unserved if any(j[2] is e for j in jobs)]
+        warm_and_check(group)
+        with ThreadPoolExecutor(par * len(group)) as pool:
+            list(pool.map(job, jobs))
+    for e, block in served_blocks:
+        sv = e["mcfg"]["serve"]
+        serve_command(sv["start"], sv.get("timeout", 600), f"start the server for model '{e['model']}'")
+        try:
+            warm_and_check([e])
+            with ThreadPoolExecutor(par) as pool:
+                list(pool.map(job, block))
+        finally:
+            if sv.get("stop"):
+                try:
+                    serve_command(sv["stop"], 120, f"stop the server for model '{e['model']}'")
+                except C.PBError:
+                    print(f"warning: stopping the server for model '{e['model']}' failed", file=sys.stderr, flush=True)
     return out_path
+
+
+def serve_command(argv, timeout, what):
+    """Run a model's serve start/stop command; a failure stops the bench with a named error (its last output kept)."""
+    try:
+        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        _die("serve-failed", f"{what}: command not found: {argv[0]}")
+    except subprocess.TimeoutExpired:
+        _die("serve-failed", f"{what}: did not finish within {timeout}s")
+    if p.returncode != 0:
+        tail = (p.stderr or p.stdout or "").strip().splitlines()[-3:]
+        _die("serve-failed", f"{what}: exit {p.returncode}: {' | '.join(tail) or 'no output'}")
+    print(f"{what}: ok", flush=True)

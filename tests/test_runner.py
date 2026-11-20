@@ -345,3 +345,50 @@ RUN.run_bench("harness", entries, 1, 1, {out!r}, task_names=["t3"], timeout=300,
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestServe(RunnerTestBase):
+    """A model with a serve block (a local model server) is started before its rows and stopped after them."""
+
+    def serve_models(self, start, stop=None):
+        m = dict(MODELS["fm"])
+        m["serve"] = {"start": start, **({"stop": stop} if stop else {})}
+        return {"fm": m, "fm2": dict(m, serve={"start": [sys.executable, "-c", f"open({self.log!r},'a').write('start2\\n')"]})}
+
+    def setUp(self):
+        super().setUp()
+        self.log = os.path.join(self.d, "serve.log")
+
+    def mark(self, word):
+        return [sys.executable, "-c", f"open({self.log!r},'a').write({word!r} + '\\n')"]
+
+    def test_server_starts_before_its_rows_and_stops_after(self):
+        models = self.serve_models(self.mark("start"), self.mark("stop"))
+        adapter = fake_adapter(self.script, self.count_file)
+        entries = RUN.build_entries("model", models, self.ex, harness="pi", model_keys=["fm", "fm2"], registry={"pi": adapter})
+        RUN.run_bench("model", entries, 2, 1, self.out, task_names=["t3", "t2"], timeout=60, ex=self.ex)
+        with open(self.log) as f:
+            events = f.read().split()
+        self.assertEqual(events, ["start", "stop", "start2"])
+        rows = self.rows()
+        self.assertEqual(len(rows), 8)
+        # each model's rows are one block: fm's four, then fm2's four
+        self.assertEqual([r["model"] for r in rows], ["fm"] * 4 + ["fm2"] * 4)
+
+    def test_a_failed_start_stops_the_bench_by_name(self):
+        models = self.serve_models([sys.executable, "-c", "import sys; sys.stderr.write('no memory'); sys.exit(2)"])
+        adapter = fake_adapter(self.script, self.count_file)
+        entries = RUN.build_entries("model", {"fm": models["fm"]}, self.ex, harness="pi", model_keys=["fm"], registry={"pi": adapter})
+        with self.assertRaises(C.PBError) as caught:
+            RUN.run_bench("model", entries, 1, 1, self.out, task_names=["t3"], timeout=60, ex=self.ex)
+        self.assertEqual(caught.exception.name, "serve-failed")
+        self.assertIn("no memory", str(caught.exception))
+        self.assertEqual(self.calls(), 0)
+
+    def test_serve_block_is_validated(self):
+        bad = dict(MODELS["fm"], serve={"start": "not a list"})
+        with self.assertRaises(C.PBError):
+            C.validate_models({"fm": bad})
+        with self.assertRaises(C.PBError):
+            C.validate_models({"fm": dict(MODELS["fm"], serve={"start": ["x"], "extra": 1})})
+        self.assertTrue(C.validate_models({"fm": dict(MODELS["fm"], serve={"start": ["x"], "stop": ["y"], "timeout": 30})}))

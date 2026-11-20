@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 - 2026-11-19
+
+- **Local models.** A model entry can carry a `serve` block (`start`, optional `stop` and `timeout`) that brings a
+  local model server up before that model's rows and down after them. Served models run as blocks, one server at a
+  time, with the task order alternating between repeats. A failed start stops the run with `serve-failed` naming the
+  command's output. Three tests.
+
 ## 0.5.1 - 2026-11-15
 
 - Fixed an overflow in the exact paired sign test for large discordant samples.
