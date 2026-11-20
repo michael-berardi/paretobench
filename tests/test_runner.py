@@ -451,6 +451,33 @@ RUN.run_bench('model', entries, 1, 1, {self.out!r}, task_names=['t3'], timeout=6
         p.wait(timeout=60)
         self.assertTrue(os.path.exists(stopper), "SIGTERM ran the active server's stop command")
 
+    def test_block_order_alternates_between_runs_and_a_missing_stop_is_refused_before_anything_runs(self):
+        models = self.serve_models(self.mark("start"), self.mark("stop"))
+        adapter = fake_adapter(self.script, self.count_file)
+        entries = RUN.build_entries("model", models, self.ex, harness="pi", model_keys=["fm", "fm2"], registry={"pi": adapter})
+        RUN.run_bench("model", entries, 1, 1, self.out, task_names=["t3"], timeout=60, ex=self.ex)
+        RUN.run_bench("model", entries, 2, 1, self.out, task_names=["t3"], timeout=60, ex=self.ex)
+        with open(self.log) as f:
+            self.assertEqual(f.read().split(), ["start", "stop", "start2", "stop2", "start2", "stop2", "start", "stop"])
+        no_stop = {"fm": dict(MODELS["fm"], serve={"start": self.mark("a")}), "fm2": dict(MODELS["fm"], serve={"start": self.mark("b")})}
+        mixed = dict(no_stop, hosted=dict(MODELS["fm"]))
+        entries = RUN.build_entries("model", mixed, self.ex, harness="pi", model_keys=["hosted", "fm", "fm2"], registry={"pi": adapter})
+        before = self.calls()
+        with self.assertRaises(C.PBError) as caught:
+            RUN.run_bench("model", entries, 1, 1, os.path.join(self.d, "r3"), task_names=["t3"], timeout=60, ex=self.ex)
+        self.assertEqual(caught.exception.name, "serve-stop-missing")
+        self.assertEqual(self.calls(), before, "refused before the hosted rows ran")
+
+    def test_when_start_and_stop_both_fail_both_causes_are_named(self):
+        m = dict(MODELS["fm"], serve={"start": [sys.executable, "-c", "import sys; sys.stderr.write('no memory'); sys.exit(1)"],
+                                      "stop": [sys.executable, "-c", "import sys; sys.stderr.write('port held'); sys.exit(1)"]})
+        adapter = fake_adapter(self.script, self.count_file)
+        entries = RUN.build_entries("model", {"fm": m}, self.ex, harness="pi", model_keys=["fm"], registry={"pi": adapter})
+        with self.assertRaises(C.PBError) as caught:
+            RUN.run_bench("model", entries, 1, 1, self.out, task_names=["t3"], timeout=60, ex=self.ex)
+        self.assertIn("no memory", str(caught.exception))
+        self.assertIn("port held", str(caught.exception))
+
     def test_serve_block_is_validated(self):
         bad = dict(MODELS["fm"], serve={"start": "not a list"})
         with self.assertRaises(C.PBError):

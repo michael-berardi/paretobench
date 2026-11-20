@@ -269,7 +269,7 @@ A model served on the same machine (a GGUF behind llama-server, for example) is 
 a `serve` block whose `start` and `stop` commands bring its server up and down. A machine runs one model server at a
 time, so served models cannot interleave the way hosted ones do: hosted entries run first, then each served model runs
 as one block (its harnesses interleave inside it, and the task order alternates between repeats). The order of the
-blocks alternates between runs. A served arm's warm-up happens when its block starts, so a misconfigured served arm is
+blocks alternates between runs of one results directory (a `served-runs` counter beside `rows.jsonl`). A served arm's warm-up happens when its block starts, so a misconfigured served arm is
 found then, not at the start of the run.
 
 What this costs: pairs are still matched on task and repeat, so correctness and token comparisons are unaffected, but

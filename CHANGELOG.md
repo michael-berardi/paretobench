@@ -8,7 +8,7 @@
   order alternates between repeats, block order alternates between runs), one server at a time. A failed start or stop
   ends the run with `serve-failed` naming the command's output; two or more served models need a `stop` each
   (`serve-stop-missing`). Served rows carry `"served": true`, and METHODOLOGY says what block order does to time
-  comparisons. Eight tests.
+  comparisons. Nine tests.
 
 ## 0.5.1 - 2026-11-15
 

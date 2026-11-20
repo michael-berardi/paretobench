@@ -19,6 +19,7 @@ import sys
 import tempfile
 import threading
 import time
+import types
 from concurrent.futures import ThreadPoolExecutor
 
 from . import __version__
@@ -334,6 +335,24 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
                 block += [(rep, t, e) for e in order if (e["name"], e["model"], t, rep) not in done]
         if block:
             served_blocks.append((model_key, group, block))
+    # Refused before anything runs: two served models where one cannot be stopped would hold the machine together.
+    if len(served_blocks) > 1 and not all(group[0]["mcfg"]["serve"].get("stop") for _, group, _ in served_blocks):
+        _die("serve-stop-missing", "more than one served model in this run, and at least one has no serve.stop: "
+                                   "its server would still hold the machine when the next one starts")
+    # The order of the served blocks alternates between runs of this results dir (a counter kept beside rows.jsonl),
+    # so no served model is always first or always last.
+    if len(served_blocks) > 1:
+        counter = os.path.join(out_dir, "served-runs")
+        try:
+            with open(counter) as f:
+                runs = int(f.read().strip() or 0)
+        except (OSError, ValueError):
+            runs = 0
+        if runs % 2:
+            served_blocks.reverse()
+        with open(counter, "w") as f:
+            f.write(f"{runs + 1}\n")
+        print(f"served model order (run {runs + 1}): {', '.join(m for m, _, _ in served_blocks)}", flush=True)
     if not jobs and not served_blocks:
         print(f"nothing to do: all {len(done)} requested rows already in {out_path}", flush=True)
         return out_path
@@ -418,36 +437,57 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
         warm_and_check(group)
         with ThreadPoolExecutor(par * len(group)) as pool:
             list(pool.map(job, jobs))
-    if len(served_blocks) > 1 and not all(group[0]["mcfg"]["serve"].get("stop") for _, group, _ in served_blocks):
-        _die("serve-stop-missing", "more than one served model in this run, and at least one has no serve.stop: "
-                                   "its server would still hold the machine when the next one starts")
-    # The order of the served blocks alternates between runs (by how many served rows exist already), so no model is
-    # always first or always last in the machine's evening.
-    if sum(1 for k in done if any(k[1] == m for m, _, _ in served_blocks)) % 2:
-        served_blocks.reverse()
     for model_key, group, block in served_blocks:
         sv = group[0]["mcfg"]["serve"]
         what = f"the server for model '{model_key}'"
         if sv.get("stop"):
             active_stop.update(argv=sv["stop"], what=f"stop {what}")
+        failure = None
         try:
-            serve_command(sv["start"], sv.get("timeout", 600), f"start {what}")
+            serve_command(sv["start"], sv.get("timeout", 600), f"start {what}", live=live, live_lock=live_lock)
             warm_and_check(group)
             with ThreadPoolExecutor(par * len(group)) as pool:
                 list(pool.map(job, block))
+        except C.PBError as err:
+            failure = err
+            raise
         finally:
             argv = active_stop["argv"]
             active_stop["argv"] = None
             if argv:
-                # A server that will not stop must not have the next one started on top of it.
-                serve_command(argv, 120, f"stop {what}")
+                # A server that will not stop must not have the next one started on top of it. When the block had
+                # already failed, both causes are named.
+                try:
+                    serve_command(argv, 120, f"stop {what}")
+                except C.PBError as stop_err:
+                    if failure is None:
+                        raise
+                    raise C.PBError(failure.name, f"{failure}; then {stop_err}") from failure
     return out_path
 
 
-def serve_command(argv, timeout, what):
-    """Run a model's serve start/stop command; a failure stops the bench with a named error (its last output kept)."""
+def serve_command(argv, timeout, what, live=None, live_lock=None):
+    """Run a model's serve start/stop command; a failure stops the bench with a named error (its last output kept).
+    With `live`, the command's process group is registered there while it runs, so a signal kills it too."""
     try:
-        p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
+        p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        if live is not None:
+            with live_lock:
+                live.add(p.pid)
+        try:
+            out, err = p.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            p.communicate()
+            raise
+        finally:
+            if live is not None:
+                with live_lock:
+                    live.discard(p.pid)
+        p = types.SimpleNamespace(returncode=p.returncode, stdout=out, stderr=err)
     except FileNotFoundError:
         _die("serve-failed", f"{what}: command not found: {argv[0]}")
     except OSError as err:
