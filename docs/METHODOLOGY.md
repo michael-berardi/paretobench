@@ -266,9 +266,13 @@ the set `legacy-steak-dsh-bench`, and a results dir may hold that one legacy set
 ## Local models
 
 A model served on the same machine (a GGUF behind llama-server, for example) is configured like any other model, with
-a `serve` block whose `start` and `stop` commands bring its server up and down. The runner keeps each served model's
-rows together as one block and alternates the task order between repeats inside the block, instead of interleaving
-models: a machine runs one model server at a time, so interleaving would reload weights on every row. Paired
-statistics are unchanged (pairs are matched on task and repeat). Rates are 0, so reports compare weighted tokens and
-time. A local model's speed depends on what else the machine is doing; run the arms of one comparison back to back
-and report the machine.
+a `serve` block whose `start` and `stop` commands bring its server up and down. A machine runs one model server at a
+time, so served models cannot interleave the way hosted ones do: hosted entries run first, then each served model runs
+as one block (its harnesses interleave inside it, and the task order alternates between repeats). The order of the
+blocks alternates between runs. A served arm's warm-up happens when its block starts, so a misconfigured served arm is
+found then, not at the start of the run.
+
+What this costs: pairs are still matched on task and repeat, so correctness and token comparisons are unaffected, but
+**time comparisons between served arms are confounded with when each block ran** (other load on the machine, thermal
+state). Rows carry `"served": true` so a reader can tell. Run the arms of one comparison back to back, repeat the run
+with the block order reversed, and report the machine. Rates are 0, so reports compare weighted tokens and time.

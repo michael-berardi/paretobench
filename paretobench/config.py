@@ -7,6 +7,7 @@ never printed, stored in rows, or passed on a command line.
 """
 import hashlib
 import json
+import math
 import os
 import shutil
 
@@ -166,11 +167,12 @@ def validate_models(models):
                       "models-config-invalid", f"{w}: harness 'claude-code' needs a 'claude' list of model args")
         if "serve" in m:
             sv = m["serve"]
-            _need(isinstance(sv, dict) and isinstance(sv.get("start"), list) and sv["start"]
-                  and all(isinstance(a, str) for a in sv["start"])
-                  and all(isinstance(sv.get(k), list) and all(isinstance(a, str) for a in sv[k]) for k in ("stop",) if k in sv)
+            argv_ok = lambda v: isinstance(v, list) and v and all(isinstance(a, str) for a in v) and v[0].strip()
+            t = sv.get("timeout", 600) if isinstance(sv, dict) else None
+            _need(isinstance(sv, dict) and argv_ok(sv.get("start"))
+                  and ("stop" not in sv or argv_ok(sv["stop"]))
                   and set(sv) <= {"start", "stop", "timeout"}
-                  and (not isinstance(sv.get("timeout"), bool) and isinstance(sv.get("timeout", 600), (int, float)) and sv.get("timeout", 600) > 0),
+                  and not isinstance(t, bool) and isinstance(t, (int, float)) and math.isfinite(t) and t > 0,
                   "models-config-invalid",
                   f"{w}: serve must be {{\"start\": [argv...], \"stop\": [argv...] (optional), \"timeout\": seconds (optional)}}")
         if "steak_pi_extra" in m:

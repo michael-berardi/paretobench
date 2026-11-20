@@ -115,10 +115,13 @@ No machine-specific path or secret lives in this repo.
   out of the repo and out of your shell history.
 
 - **Local models.** A model entry may carry `"serve": {"start": [argv], "stop": [argv], "timeout": seconds}`: the
-  runner runs `start` before that model's rows and `stop` after them, and runs each served model's rows as one block,
-  since one machine holds one model server at a time. A failed start stops the run with `serve-failed` and the
-  command's last output. With Steak Pi's local manager the commands are `steak-pi local start <id>` and
-  `steak-pi local stop`; point the entry's `pi` args at `local/<id>` and set every rate to 0.
+  runner runs `start` (bounded by `timeout`, default 600 s) before that model's rows and `stop` after them, and also on
+  a failed start, Ctrl-C or SIGTERM. Hosted models run first; then each served model runs as one block (every harness
+  on it shares the server and interleaves inside the block), since one machine holds one model server at a time. A
+  failed start or stop ends the run with `serve-failed` and the command's last output; two or more served models need a
+  `stop` each (`serve-stop-missing`). Served rows carry `"served": true`. With Steak Pi's local manager the commands
+  are `steak-pi local start <id>` and `steak-pi local stop`; point the entry's `pi` args at `local/<id>` and set every
+  rate to 0.
 
 Keys are read from the Pi agent auth store at run time, passed only via the child environment, never
 printed, stored or put on a command line, and scrubbed from raw logs (`PB_LOG_DIR`).

@@ -145,15 +145,28 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
                 pass
         shutil.rmtree(work, ignore_errors=True)
 
+    # The stop command of the local model server that is up right now, if any: a signal or exit must not leave it running.
+    active_stop = {"argv": None, "what": ""}
+
+    def stop_active_server():
+        argv, active_stop["argv"] = active_stop["argv"], None
+        if argv:
+            try:
+                serve_command(argv, 120, active_stop["what"])
+            except C.PBError as err:
+                print(f"warning: {err}", file=sys.stderr, flush=True)
+
     def on_signal(signum, _frame):
         stopping.set()
         print(f"stopped by signal {signum}: killing {len(live)} child process group(s)", file=sys.stderr, flush=True)
         cleanup()
+        stop_active_server()
         time.sleep(0.3)  # let worker threads observe the stop before the last sweep
         shutil.rmtree(work, ignore_errors=True)
         os._exit(128 + signum)
 
     atexit.register(cleanup)
+    atexit.register(stop_active_server)
     signal.signal(signal.SIGTERM, on_signal)
     signal.signal(signal.SIGINT, on_signal)
 
@@ -307,12 +320,20 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
             for e in order:
                 if (e["name"], e["model"], t, rep) not in done:
                     jobs.append((rep, t, e))
-    served_blocks = []
+    # One block per served model (every harness on that model shares its server), in which the model's entries
+    # interleave as hosted ones do and the task order alternates between repeats.
+    by_model = {}
     for e in served:
-        block = [(rep, t, e) for rep in range(reps) for t in (names if rep % 2 == 0 else list(reversed(names)))
-                 if (e["name"], e["model"], t, rep) not in done]
+        by_model.setdefault(e["model"], []).append(e)
+    served_blocks = []
+    for model_key, group in by_model.items():
+        block = []
+        for rep in range(reps):
+            for ti, t in enumerate(names if rep % 2 == 0 else list(reversed(names))):
+                order = group[(rep + ti) % len(group):] + group[:(rep + ti) % len(group)]
+                block += [(rep, t, e) for e in order if (e["name"], e["model"], t, rep) not in done]
         if block:
-            served_blocks.append((e, block))
+            served_blocks.append((model_key, group, block))
     if not jobs and not served_blocks:
         print(f"nothing to do: all {len(done)} requested rows already in {out_path}", flush=True)
         return out_path
@@ -352,6 +373,8 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
                    task_set=tset, ts=round(time.time()))
         if bench == "harness" and e["base"] != e["name"]:
             row["variant_of"] = e["base"]
+        if e["mcfg"].get("serve"):
+            row["served"] = True  # ran in a local-server block: its time is not interleaved with other arms
         with lock:
             if stopping.is_set():
                 return
@@ -395,19 +418,29 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
         warm_and_check(group)
         with ThreadPoolExecutor(par * len(group)) as pool:
             list(pool.map(job, jobs))
-    for e, block in served_blocks:
-        sv = e["mcfg"]["serve"]
-        serve_command(sv["start"], sv.get("timeout", 600), f"start the server for model '{e['model']}'")
+    if len(served_blocks) > 1 and not all(group[0]["mcfg"]["serve"].get("stop") for _, group, _ in served_blocks):
+        _die("serve-stop-missing", "more than one served model in this run, and at least one has no serve.stop: "
+                                   "its server would still hold the machine when the next one starts")
+    # The order of the served blocks alternates between runs (by how many served rows exist already), so no model is
+    # always first or always last in the machine's evening.
+    if sum(1 for k in done if any(k[1] == m for m, _, _ in served_blocks)) % 2:
+        served_blocks.reverse()
+    for model_key, group, block in served_blocks:
+        sv = group[0]["mcfg"]["serve"]
+        what = f"the server for model '{model_key}'"
+        if sv.get("stop"):
+            active_stop.update(argv=sv["stop"], what=f"stop {what}")
         try:
-            warm_and_check([e])
-            with ThreadPoolExecutor(par) as pool:
+            serve_command(sv["start"], sv.get("timeout", 600), f"start {what}")
+            warm_and_check(group)
+            with ThreadPoolExecutor(par * len(group)) as pool:
                 list(pool.map(job, block))
         finally:
-            if sv.get("stop"):
-                try:
-                    serve_command(sv["stop"], 120, f"stop the server for model '{e['model']}'")
-                except C.PBError:
-                    print(f"warning: stopping the server for model '{e['model']}' failed", file=sys.stderr, flush=True)
+            argv = active_stop["argv"]
+            active_stop["argv"] = None
+            if argv:
+                # A server that will not stop must not have the next one started on top of it.
+                serve_command(argv, 120, f"stop {what}")
     return out_path
 
 
@@ -417,6 +450,8 @@ def serve_command(argv, timeout, what):
         p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
     except FileNotFoundError:
         _die("serve-failed", f"{what}: command not found: {argv[0]}")
+    except OSError as err:
+        _die("serve-failed", f"{what}: cannot run {argv[0]!r}: {err}")
     except subprocess.TimeoutExpired:
         _die("serve-failed", f"{what}: did not finish within {timeout}s")
     if p.returncode != 0:

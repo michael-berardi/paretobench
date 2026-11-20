@@ -343,17 +343,14 @@ RUN.run_bench("harness", entries, 1, 1, {out!r}, task_names=["t3"], timeout=300,
                         pass
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestServe(RunnerTestBase):
     """A model with a serve block (a local model server) is started before its rows and stopped after them."""
 
     def serve_models(self, start, stop=None):
         m = dict(MODELS["fm"])
         m["serve"] = {"start": start, **({"stop": stop} if stop else {})}
-        return {"fm": m, "fm2": dict(m, serve={"start": [sys.executable, "-c", f"open({self.log!r},'a').write('start2\\n')"]})}
+        return {"fm": m, "fm2": dict(m, serve={"start": [sys.executable, "-c", f"open({self.log!r},'a').write('start2\\n')"],
+                                               "stop": [sys.executable, "-c", f"open({self.log!r},'a').write('stop2\\n')"]})}
 
     def setUp(self):
         super().setUp()
@@ -369,7 +366,7 @@ class TestServe(RunnerTestBase):
         RUN.run_bench("model", entries, 2, 1, self.out, task_names=["t3", "t2"], timeout=60, ex=self.ex)
         with open(self.log) as f:
             events = f.read().split()
-        self.assertEqual(events, ["start", "stop", "start2"])
+        self.assertEqual(events, ["start", "stop", "start2", "stop2"])
         rows = self.rows()
         self.assertEqual(len(rows), 8)
         # each model's rows are one block: fm's four, then fm2's four
@@ -385,10 +382,85 @@ class TestServe(RunnerTestBase):
         self.assertIn("no memory", str(caught.exception))
         self.assertEqual(self.calls(), 0)
 
+    def test_a_failing_stop_halts_before_the_next_server_and_a_missing_stop_is_refused(self):
+        models = self.serve_models(self.mark("start"), [sys.executable, "-c", "import sys; sys.stderr.write('stuck'); sys.exit(3)"])
+        adapter = fake_adapter(self.script, self.count_file)
+        entries = RUN.build_entries("model", models, self.ex, harness="pi", model_keys=["fm", "fm2"], registry={"pi": adapter})
+        with self.assertRaises(C.PBError) as caught:
+            RUN.run_bench("model", entries, 1, 1, self.out, task_names=["t3"], timeout=60, ex=self.ex)
+        self.assertEqual(caught.exception.name, "serve-failed")
+        self.assertIn("stuck", str(caught.exception))
+        with open(self.log) as f:
+            self.assertNotIn("start2", f.read())
+        no_stop = {"fm": dict(MODELS["fm"], serve={"start": self.mark("a")}), "fm2": dict(MODELS["fm"], serve={"start": self.mark("b")})}
+        entries = RUN.build_entries("model", no_stop, self.ex, harness="pi", model_keys=["fm", "fm2"], registry={"pi": adapter})
+        with self.assertRaises(C.PBError) as caught:
+            RUN.run_bench("model", entries, 1, 1, os.path.join(self.d, "r2"), task_names=["t3"], timeout=60, ex=self.ex)
+        self.assertEqual(caught.exception.name, "serve-stop-missing")
+
+    def test_a_failed_start_still_runs_stop(self):
+        m = dict(MODELS["fm"], serve={"start": [sys.executable, "-c", "import sys; sys.exit(1)"], "stop": self.mark("stop")})
+        adapter = fake_adapter(self.script, self.count_file)
+        entries = RUN.build_entries("model", {"fm": m}, self.ex, harness="pi", model_keys=["fm"], registry={"pi": adapter})
+        with self.assertRaises(C.PBError):
+            RUN.run_bench("model", entries, 1, 1, self.out, task_names=["t3"], timeout=60, ex=self.ex)
+        with open(self.log) as f:
+            self.assertEqual(f.read().split(), ["stop"])
+
+    def test_resume_runs_only_missing_rows_and_rows_are_marked_served(self):
+        models = {"fm": dict(MODELS["fm"], serve={"start": self.mark("start"), "stop": self.mark("stop")})}
+        adapter = fake_adapter(self.script, self.count_file)
+        entries = RUN.build_entries("model", models, self.ex, harness="pi", model_keys=["fm"], registry={"pi": adapter})
+        RUN.run_bench("model", entries, 1, 1, self.out, task_names=["t3", "t2"], timeout=60, ex=self.ex)
+        self.assertTrue(all(r.get("served") for r in self.rows()))
+        RUN.run_bench("model", entries, 2, 1, self.out, task_names=["t3", "t2"], timeout=60, ex=self.ex)
+        rows = self.rows()
+        self.assertEqual(len(rows), 4)
+        self.assertEqual([r["task"] for r in rows if r["rep"] == 1], ["t2", "t3"], "the second repeat runs the tasks in reverse")
+        RUN.run_bench("model", entries, 2, 1, self.out, task_names=["t3", "t2"], timeout=60, ex=self.ex)
+        with open(self.log) as f:
+            self.assertEqual(f.read().split(), ["start", "stop", "start", "stop"], "a finished block starts no server")
+
+    def test_a_signal_during_a_block_stops_the_server(self):
+        stopper = os.path.join(self.d, "stopped")
+        runner = os.path.join(self.d, "run_signal.py")
+        with open(runner, "w") as f:
+            f.write(f"""import os, sys, types
+sys.path.insert(0, {REPO!r})
+from paretobench import runner as RUN
+SLOW = {SLOW_SCRIPT!r}
+open({self.d!r} + '/slow.py', 'w').write(SLOW)
+a = types.SimpleNamespace(name='pi', family='fake', validate=lambda m, ex: None, version=lambda ex: 'v',
+    setup_lane=lambda *x: {{}}, after_run=lambda lane: None,
+    build_command=lambda ex, m, prompt, lane, model_patch=None, extra_patches=(): ([sys.executable, {self.d!r} + '/slow.py', {self.d!r} + '/pid'], {{}}),
+    parse=lambda rc, out, err, scrub: (dict(i=1, cr=0, cw=0, o=1, reasoning=0, turns=1, tools=0), 'ok'))
+models = {{'fm': {{'harnesses': ['pi'], 'pi': ['--model', 'x'], 'rates': {{'i': 0, 'cr': 0, 'cw': 0, 'o': 0}},
+           'serve': {{'start': [sys.executable, '-c', 'pass'], 'stop': [sys.executable, '-c', "open({stopper!r}, 'w').write('x')"]}}}}}}
+ex = {{'pi_bin': '', 'dsh_bin': '', 'claude_bin': '', 'steak_pi_package': '', 'steak_dsh_patch': '', 'pi_agent_dir': {self.d!r}}}
+entries = RUN.build_entries('model', models, ex, harness='pi', model_keys=['fm'], registry={{'pi': a}})
+RUN.run_bench('model', entries, 1, 1, {self.out!r}, task_names=['t3'], timeout=60, ex=ex)
+""")
+        p = subprocess.Popen([sys.executable, runner])
+        pid_file = os.path.join(self.d, "pid")
+        for _ in range(200):
+            if os.path.exists(pid_file):
+                break
+            time.sleep(0.1)
+        self.assertTrue(os.path.exists(pid_file), "the warm-up reached the slow harness")
+        p.send_signal(signal.SIGTERM)
+        p.wait(timeout=60)
+        self.assertTrue(os.path.exists(stopper), "SIGTERM ran the active server's stop command")
+
     def test_serve_block_is_validated(self):
         bad = dict(MODELS["fm"], serve={"start": "not a list"})
         with self.assertRaises(C.PBError):
             C.validate_models({"fm": bad})
         with self.assertRaises(C.PBError):
             C.validate_models({"fm": dict(MODELS["fm"], serve={"start": ["x"], "extra": 1})})
+        for bad_serve in ({"start": [""]}, {"start": ["x"], "stop": []}, {"start": ["x"], "timeout": float("inf")}, {"start": ["x"], "timeout": True}):
+            with self.assertRaises(C.PBError):
+                C.validate_models({"fm": dict(MODELS["fm"], serve=bad_serve)})
         self.assertTrue(C.validate_models({"fm": dict(MODELS["fm"], serve={"start": ["x"], "stop": ["y"], "timeout": 30})}))
+
+if __name__ == "__main__":
+    unittest.main()

@@ -2,10 +2,13 @@
 
 ## 0.6.0 - 2026-11-19
 
-- **Local models.** A model entry can carry a `serve` block (`start`, optional `stop` and `timeout`) that brings a
-  local model server up before that model's rows and down after them. Served models run as blocks, one server at a
-  time, with the task order alternating between repeats. A failed start stops the run with `serve-failed` naming the
-  command's output. Three tests.
+- **Local models.** A model entry can carry a `serve` block (`start`, optional `stop`, and a `timeout` for `start`) that
+  brings a local model server up before that model's rows and down after them, and on a failed start, Ctrl-C or
+  SIGTERM. Hosted models run first; each served model then runs as one block (its harnesses interleave inside it, task
+  order alternates between repeats, block order alternates between runs), one server at a time. A failed start or stop
+  ends the run with `serve-failed` naming the command's output; two or more served models need a `stop` each
+  (`serve-stop-missing`). Served rows carry `"served": true`, and METHODOLOGY says what block order does to time
+  comparisons. Eight tests.
 
 ## 0.5.1 - 2026-11-15
 
