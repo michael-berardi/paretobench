@@ -42,6 +42,11 @@ def make_agent_dir(ex, work, slot, lane_name, pkgs):
         shutil.copy(os.path.join(ex["pi_agent_dir"], "models.json"), ad)
         with open(os.path.join(ad, "settings.json"), "w") as f:
             json.dump({"quietStartup": True, "packages": list(pkgs)}, f)
+        # Local models (Steak Pi `local/<id>`) keep their profiles, holds and server leases in the agent dir's local/
+        # folder; the lane must see the operator's, or every local-model run is refused as an unknown model.
+        local = os.path.join(ex["pi_agent_dir"], "local")
+        if os.path.isdir(local):
+            os.symlink(local, os.path.join(ad, "local"))
     return {"agent_dir": ad}
 
 

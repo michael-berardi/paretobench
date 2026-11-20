@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 - 2026-11-20
+
+- **Local models run in Pi-family lanes.** Each lane's private agent dir now links the operator's `local/` folder (Steak
+  Pi local model profiles, holds and server leases), so a `local/<id>` model is no longer refused as an unknown model
+  in every warm-up. Two tests.
+
 ## 0.6.1 - 2026-11-20
 
 - **The Steak Pi arm no longer breaks when its pinned release is pruned.** `PB_STEAK_PI_PACKAGE` pointing at a release
