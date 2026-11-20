@@ -29,8 +29,12 @@ class PBError(Exception):
 
 
 # Task sets selectable with --task-set. The default (short) set is never changed by adding another.
+# review-v1 is a separate corpus (case directories, not tasks.json + fixture); it is
+# selected by `paretobench review`, `validate` and `selftest`, never by harness/model.
 DEFAULT_TASK_SET = "short"
-TASK_SETS = {"short": "tasks", "long-v1": "tasks-long"}
+REVIEW_TASK_SET = "review-v1"
+TASK_SETS = {"short": "tasks", "long-v1": "tasks-long", REVIEW_TASK_SET: "tasks/review-v1"}
+HARNESS_TASK_SETS = ("short", "long-v1")
 # Hard per-run timeout when --timeout is not given: the short set keeps 600 s; long sets read budgets.json.
 DEFAULT_TIMEOUT = 600
 
@@ -41,6 +45,12 @@ def tasks_dir(task_set=None):
     task_set = task_set or DEFAULT_TASK_SET
     if task_set not in TASK_SETS:
         raise PBError("unknown-task-set", f"'{task_set}' (task sets: {', '.join(TASK_SETS)})")
+    if task_set == REVIEW_TASK_SET:
+        hint = "PARETOBENCH_TASKS_REVIEW_V1"
+        d = os.environ.get(hint) or os.path.join(REPO_ROOT, TASK_SETS[REVIEW_TASK_SET])
+        if not os.path.isdir(d):
+            raise PBError("tasks-dir-missing", f"{d} (set {hint} to the review task set directory)")
+        return d
     short = os.environ.get("PARETOBENCH_TASKS") or os.path.join(REPO_ROOT, TASK_SETS[DEFAULT_TASK_SET])
     if task_set == DEFAULT_TASK_SET:
         d, hint = short, "PARETOBENCH_TASKS"

@@ -90,3 +90,8 @@ def model_args(mcfg):
 def build_command(ex, mcfg, prompt, lane, model_patch=None, extra_patches=()):
     argv = [ex["pi_bin"], "-p", "--mode", "json", "--no-session"] + model_args(mcfg) + [prompt]
     return argv, {"PI_CODING_AGENT_DIR": lane["agent_dir"]}
+
+
+def review_command(ex, mcfg, prompt, lane, model_patch=None, extra_patches=()):
+    argv, env = build_command(ex, mcfg, prompt, lane, model_patch, extra_patches)
+    return pi.read_only_argv(argv), env

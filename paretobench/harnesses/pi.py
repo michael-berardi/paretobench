@@ -10,6 +10,10 @@ from . import RunFail, events_of, empty_usage
 name = "pi"
 family = "pi"
 EXTRA_FLAGS = ["-ne"]
+# Review-mode flags: file reads and search only, no skills, prompt templates, AGENTS.md
+# or MCP servers that could coach the reviewer, and no startup network work.
+READ_ONLY_FLAGS = ["--no-skills", "--no-context-files", "--no-mcp", "--no-prompt-templates",
+                   "--offline", "--tools", "read,grep,find,ls"]
 
 
 def packages(ex):
@@ -57,6 +61,16 @@ def model_args(mcfg):
 def build_command(ex, mcfg, prompt, lane, model_patch=None, extra_patches=()):
     argv = [ex["pi_bin"], "-p", "--mode", "json", "--no-session"] + EXTRA_FLAGS + model_args(mcfg) + [prompt]
     return argv, {"PI_CODING_AGENT_DIR": lane["agent_dir"]}
+
+
+def read_only_argv(argv):
+    """Insert the review flags before the prompt of an existing Pi command."""
+    return argv[:-1] + READ_ONLY_FLAGS + argv[-1:]
+
+
+def review_command(ex, mcfg, prompt, lane, model_patch=None, extra_patches=()):
+    argv, env = build_command(ex, mcfg, prompt, lane, model_patch, extra_patches)
+    return read_only_argv(argv), env
 
 
 def parse(rc, out, err, scrub):

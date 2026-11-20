@@ -34,6 +34,15 @@ def build_command(ex, mcfg, prompt, lane, model_patch=None, extra_patches=()):
     return argv, {}
 
 
+def review_command(ex, mcfg, prompt, lane, model_patch=None, extra_patches=()):
+    """Same binary and model args; only the read tools exist (--tools), so no edit or shell is possible."""
+    argv = [ex["claude_bin"], "-p"] + list(mcfg["claude"]) + [
+        "--no-session-persistence", "--setting-sources", "", "--disable-slash-commands",
+        "--strict-mcp-config", "--no-chrome", "--tools", "Read,Glob,Grep",
+        "--allowedTools", "Read,Glob,Grep", "--output-format", "json", prompt]
+    return argv, {}
+
+
 def parse(rc, out, err, scrub):
     try:
         j = json.loads(out)

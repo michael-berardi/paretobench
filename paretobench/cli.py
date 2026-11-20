@@ -12,6 +12,9 @@ from . import __version__
 from . import config as C
 from . import report as R
 from . import runner as RUN
+from . import review as RV
+from . import review_runner as RR
+from . import stats as ST
 from . import harnesses as H
 
 
@@ -59,7 +62,58 @@ def _report_cmd(args):
     print(f"wrote {jp} and {mp}")
 
 
+def _review_cmd(args):
+    if args.validate:
+        counts = RV.validate_corpus()
+        print(f"ok review corpus [{C.REVIEW_TASK_SET}]: {counts['cases']} cases "
+              f"({counts['traps']} traps, {counts['controls']} controls), patches and bug locations valid")
+        return 0
+    if args.dry_run is not None:
+        fixture = args.dry_run or args.fixture or RV.fixture_path()
+        records = RV.read_records(fixture)
+        cases = RV.load_corpus()
+        graded = RV.grade_records(cases, records)
+        summary = RV.summarize(graded)
+        print(f"Dry run: {fixture}, {len(graded)} recorded replies, no model called.")
+        if args.json:
+            print(json.dumps(ST.clean(summary), indent=2))
+        else:
+            print(RV.render(summary, md=args.md))
+            if args.per_case:
+                print()
+                print(RV.per_case_table(graded))
+        if args.out:
+            RV.write_reports(summary, os.path.abspath(os.path.expanduser(args.out)))
+        return 0
+    if args.report:
+        try:
+            models = C.load_models()
+        except C.PBError:
+            models = None
+        summary = RR.report(args.report, models, verbose=not args.json)
+        if args.json:
+            print(json.dumps(ST.clean(summary), indent=2))
+        return 0
+    if not args.out:
+        raise C.PBError("review-out-missing", "a live review needs --out DIR (or use --dry-run / --validate)")
+    if args.reps < 1 or args.par < 1:
+        raise C.PBError("bad-review-args", "--reps and --par must be at least 1")
+    models = {} if args.model_id else C.load_models()
+    cases = [c.strip() for c in args.cases.split(",") if c.strip()] if args.cases else None
+    RR.run(models, C.resolve_executables(), args.harness, args.model, args.model_id,
+           args.reps, args.par, args.out, case_ids=cases, timeout=args.timeout,
+           verbose=not args.json)
+    return 0
+
+
 def _selftest_cmd(args):
+    if args.task_set == C.REVIEW_TASK_SET:
+        counts = RV.validate_corpus()
+        graded = RV.grade_records(RV.load_corpus(), RV.read_records(RV.fixture_path()))
+        summary = RV.summarize(graded)
+        print(f"ok review corpus: {counts['cases']} cases; dry run on {len(graded)} recorded verdicts")
+        print(RV.render(summary))
+        return 0
     if args.task_set and args.task_set != C.DEFAULT_TASK_SET:
         from . import selftest_long
         return selftest_long.run(args.task_set)
@@ -171,6 +225,15 @@ def _validate_cmd(args):
     models = C.load_models()
     print(f"ok models config: {C.models_path()} ({len(models)} models: {', '.join(sorted(models))})")
     for ts in ([args.task_set] if args.task_set else list(C.TASK_SETS)):
+        if ts == C.REVIEW_TASK_SET:
+            try:
+                counts = RV.validate_corpus()
+            except C.PBError as e:
+                if args.task_set or e.name != "tasks-dir-missing":
+                    raise
+                continue  # an install without the optional review set still validates
+            print(f"ok tasks [{ts}]: {counts['cases']} review cases (patches, context and bug locations checked)")
+            continue
         try:
             td = C.tasks_dir(ts)
         except C.PBError:
@@ -198,7 +261,7 @@ def main(argv=None):
     p.add_argument("--tasks", help="comma-separated task ids (default: all)")
     p.add_argument("--timeout", type=int, default=None,
                    help="hard per-run timeout, seconds (default: the task set's budgets.json, else 600)")
-    p.add_argument("--task-set", default=C.DEFAULT_TASK_SET, choices=sorted(C.TASK_SETS),
+    p.add_argument("--task-set", default=C.DEFAULT_TASK_SET, choices=list(C.HARNESS_TASK_SETS),
                    help="task set: short (default, 20 tasks) or long-v1 (11 long multi-step tasks)")
     p.add_argument("--variant", action="append", default=[], metavar="NAME=HARNESS:PATCH",
                    help="extra ablation arm: dsh-family harness plus this patch (repeatable)")
@@ -212,8 +275,27 @@ def main(argv=None):
     p.add_argument("--out", required=True)
     p.add_argument("--tasks")
     p.add_argument("--timeout", type=int, default=None)
-    p.add_argument("--task-set", default=C.DEFAULT_TASK_SET, choices=sorted(C.TASK_SETS))
+    p.add_argument("--task-set", default=C.DEFAULT_TASK_SET, choices=list(C.HARNESS_TASK_SETS))
     p.set_defaults(fn=_model_cmd)
+
+    p = sub.add_parser("review", help="review bench: invented bugs on clean changes vs hits on real ones")
+    p.add_argument("--validate", action="store_true", help="check the review corpus; no model call")
+    p.add_argument("--dry-run", nargs="?", const="", default=None, metavar="FIXTURE",
+                   help="grade recorded verdicts (default: the shipped fixture); no model call")
+    p.add_argument("--fixture", help="recorded-verdicts JSON for --dry-run")
+    p.add_argument("--report", help="summarize an existing review results dir")
+    p.add_argument("--model", help="model key from the models config")
+    p.add_argument("--model-id", help="use this model id directly (no config entry; no rate table, compared in tokens)")
+    p.add_argument("--harness", default="pi", choices=list(RR.SUPPORTED))
+    p.add_argument("--reps", type=int, default=3)
+    p.add_argument("--par", type=int, default=2)
+    p.add_argument("--out", help="results dir (rows.jsonl is appended)")
+    p.add_argument("--cases", help="comma-separated case ids (default: all)")
+    p.add_argument("--timeout", type=int, default=600, help="hard per-run timeout, seconds")
+    p.add_argument("--per-case", action="store_true", help="print outcomes for each case")
+    p.add_argument("--md", action="store_true", help="GitHub markdown tables")
+    p.add_argument("--json", action="store_true", help="machine-readable summary on stdout")
+    p.set_defaults(fn=_review_cmd)
 
     p = sub.add_parser("report", help="summarize a results dir (both benches, legacy rows ok)")
     p.add_argument("dir")

@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.0 - 2026-11-20
+
+- **New bench: `paretobench review` with task set `review-v1`.** It measures whether a
+  reviewer invents bugs on correct changes (false alarms) and still finds real bugs on
+  broken changes (hits). The 33-case corpus is adapted from oh-my-hermes' MIT-licensed
+  review-false-alarms corpus; attribution, the three corrected cases and the re-check
+  of the other traps are in `tasks/review-v1/README.md`. Two traps were mislabelled:
+  `trap-lock-held-by-caller` now clears `_total` in `reset()`, and
+  `trap-lazy-open-closed-by-exit` now refuses writes after `close()` instead of
+  reopening and truncating the file. The float trap now records the caller's quota
+  bound that makes its equality exact.
+- The command grades a neutral one-shot review through `pi`, `steak-pi` or
+  `claude-code` with read-only tools, random workspace names, process-group timeouts,
+  resume from rows and scrubbed logs. `--reps` defaults to 3; `--model-id` runs a model
+  named on the command line with no config entry. The report gives per-arm false-alarm
+  and hit rates, no-verdict and wrong-location counts, flips and usage, plus the
+  two-sided win rule (`noise` when any case has fewer than three runs).
+- Offline `review --validate`, `review --dry-run` and `selftest --task-set review-v1`,
+  with a shipped recorded-verdicts fixture. Corpus validation checks every patch
+  against its context and every control's bug location. Twenty offline tests.
+
 ## 0.6.2 - 2026-11-20
 
 - **Local models run in Pi-family lanes.** Each lane's private agent dir now links the operator's `local/` folder (Steak

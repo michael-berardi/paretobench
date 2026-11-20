@@ -1,0 +1,582 @@
+{
+  "schema": "paretobench/review-records/v1",
+  "note": "Hand-written replies exercising clean, bug (inside and outside the +-3 window), markdown-wrapped verdicts, path prefixes, garbled verdicts and verdicts that are not the last line. Not a measurement; do not quote its numbers.",
+  "records": [
+    {
+      "arm": "arm-a",
+      "case": "trap-lock-held-by-caller",
+      "run": 0,
+      "output": "Reasoning.\n\n**VERDICT: clean**",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-lock-held-by-caller",
+      "run": 1,
+      "output": "Reasoning.\n\n```\nVERDICT: clean\n```",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-lock-held-by-caller",
+      "run": 2,
+      "output": "Reasoning.\n\n- VERDICT: clean",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-lock-held-by-caller",
+      "run": 0,
+      "output": "_total is not cleared.\nVERDICT: bug app/metrics.py:21",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-lock-held-by-caller",
+      "run": 1,
+      "output": "_total is not cleared.\nVERDICT: bug app/metrics.py:21",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-lock-held-by-caller",
+      "run": 2,
+      "output": "Read reset().\nVERDICT: clean",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-lazy-open-closed-by-exit",
+      "run": 0,
+      "output": "Looked at close() and the caller.\nVERDICT: clean",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-lazy-open-closed-by-exit",
+      "run": 1,
+      "output": "Looked at close() and the caller.\nVERDICT: clean",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-lazy-open-closed-by-exit",
+      "run": 2,
+      "output": "Looked at close() and the caller.\n> VERDICT: clean",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-lazy-open-closed-by-exit",
+      "run": 0,
+      "output": "A later write reopens.\nVERDICT: bug app/export.py:18",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-lazy-open-closed-by-exit",
+      "run": 1,
+      "output": "A later write reopens.\nVERDICT: bug app/export.py:18",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-lazy-open-closed-by-exit",
+      "run": 2,
+      "output": "A later write reopens.\nVERDICT: bug app/export.py:18",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-go-shift-bounded-by-policy",
+      "run": 0,
+      "output": "Checked NewPolicy.\nVERDICT: clean",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-go-shift-bounded-by-policy",
+      "run": 1,
+      "output": "Checked NewPolicy.\nVERDICT: clean",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-go-shift-bounded-by-policy",
+      "run": 2,
+      "output": "The shift can overflow on a large attempt.\nVERDICT: bug internal/retry/backoff.go:8",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-go-shift-bounded-by-policy",
+      "run": 0,
+      "output": "Shift overflow.\nVERDICT: bug internal/retry/backoff.go:8",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-go-shift-bounded-by-policy",
+      "run": 1,
+      "output": "Shift overflow.\nVERDICT: bug internal/retry/backoff.go:8",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-go-shift-bounded-by-policy",
+      "run": 2,
+      "output": "Shift overflow.\nVERDICT: bug internal/retry/backoff.go:8",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-header-skip-pinned-by-test",
+      "run": 0,
+      "output": "The test pins the header.\nVERDICT: clean",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-header-skip-pinned-by-test",
+      "run": 1,
+      "output": "The test pins the header.\nVERDICT: clean",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "trap-header-skip-pinned-by-test",
+      "run": 2,
+      "output": "The test pins the header.\nVERDICT: clean",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-header-skip-pinned-by-test",
+      "run": 0,
+      "output": "Header skip is wrong.\nVERDICT: bug app/csv_import.py:8",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-header-skip-pinned-by-test",
+      "run": 1,
+      "output": "No verdict line here.",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "trap-header-skip-pinned-by-test",
+      "run": 2,
+      "output": "Looked at the rows.\nVERDICT: clean",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-aware-now-against-naive-column",
+      "run": 0,
+      "output": "Naive vs aware.\nVERDICT: bug app/tokens.py:7",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-aware-now-against-naive-column",
+      "run": 1,
+      "output": "Naive vs aware.\nVERDICT: bug app/tokens.py:7",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-aware-now-against-naive-column",
+      "run": 2,
+      "output": "Naive vs aware.\nVERDICT: bug app/tokens.py:7",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-aware-now-against-naive-column",
+      "run": 0,
+      "output": "Naive vs aware.\nVERDICT: bug a/app/tokens.py:7",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-aware-now-against-naive-column",
+      "run": 1,
+      "output": "Naive vs aware.\nVERDICT: bug ./app/tokens.py:7",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-aware-now-against-naive-column",
+      "run": 2,
+      "output": "Naive vs aware.\nVERDICT: bug app/tokens.py:6",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-bisect-on-unsorted-tiers",
+      "run": 0,
+      "output": "Largest tier first.\nVERDICT: bug context/app/prices.py:9",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-bisect-on-unsorted-tiers",
+      "run": 1,
+      "output": "Largest tier first.\nVERDICT: bug context/app/prices.py:9",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-bisect-on-unsorted-tiers",
+      "run": 2,
+      "output": "Largest tier first.\nVERDICT: bug context/app/prices.py:9",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-bisect-on-unsorted-tiers",
+      "run": 0,
+      "output": "Largest first.\nVERDICT: bug app/prices.py:7",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-bisect-on-unsorted-tiers",
+      "run": 1,
+      "output": "Largest first.\nVERDICT: bug app/prices.py:7",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-bisect-on-unsorted-tiers",
+      "run": 2,
+      "output": "Largest first.\nVERDICT: bug app/prices.py:7",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-page-slice-drops-last",
+      "run": 0,
+      "output": "Off-by-one.\nVERDICT: bug app/pagination.py:6",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-page-slice-drops-last",
+      "run": 1,
+      "output": "Off-by-one.\nVERDICT: bug app/pagination.py:6",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-page-slice-drops-last",
+      "run": 2,
+      "output": "Off-by-one.\nVERDICT: bug app/pagination.py:6",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-page-slice-drops-last",
+      "run": 0,
+      "output": "Off-by-one.\nVERDICT: bug app/pagination.py:6",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-page-slice-drops-last",
+      "run": 1,
+      "output": "Hmm.\nVERDICT: maybe",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-page-slice-drops-last",
+      "run": 2,
+      "output": "VERDICT: clean\n\nActually there is a bug, but I will not state it.",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-sql-injection-search",
+      "run": 0,
+      "output": "Interpolated name.\nVERDICT: bug app/search.py:8",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-sql-injection-search",
+      "run": 1,
+      "output": "Interpolated name.\nVERDICT: bug app/search.py:8",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-a",
+      "case": "control-sql-injection-search",
+      "run": 2,
+      "output": "Interpolated name.\nVERDICT: bug app/routes.py:4",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-sql-injection-search",
+      "run": 0,
+      "output": "Interpolated name.\nVERDICT: bug app/search.py:8",
+      "usage": {
+        "i": 100,
+        "cr": 5,
+        "cw": 0,
+        "o": 20
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-sql-injection-search",
+      "run": 1,
+      "output": "Interpolated name.\nVERDICT: bug app/search.py:8",
+      "usage": {
+        "i": 110,
+        "cr": 5,
+        "cw": 0,
+        "o": 21
+      }
+    },
+    {
+      "arm": "arm-b",
+      "case": "control-sql-injection-search",
+      "run": 2,
+      "output": "Interpolated name.\nVERDICT: bug app/search.py:8",
+      "usage": {
+        "i": 120,
+        "cr": 5,
+        "cw": 0,
+        "o": 22
+      }
+    }
+  ]
+}

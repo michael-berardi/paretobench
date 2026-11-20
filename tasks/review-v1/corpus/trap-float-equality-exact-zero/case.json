@@ -1,0 +1,7 @@
+{
+  "id": "trap-float-equality-exact-zero",
+  "kind": "trap",
+  "language": "python",
+  "expected": "clean",
+  "why": "Comparing a float with == is usually fragile, but used and limit are ints, limit > 0 here, and the only caller (app/plans.py) validates limit to at most 2_000_000_000 from a 32-bit plans column. The smallest nonzero ratio is then far above float underflow, so used / limit is exactly 0.0 precisely when used == 0."
+}

@@ -257,6 +257,62 @@ Add a task: write the prompt with every requirement stated, write the hidden che
 solution, and make the selftest pass. Put it in a category or argue for a new one. A changed task set gets
 a new hash and starts a new results series. Never edit a task set under published results.
 
+## The review bench (review-v1)
+
+The harness and model benches measure whether an agent finishes work. `paretobench
+review` measures a different failure: calling a correct change buggy. A reviewer that
+flags everything never misses a bug, and a reviewer that flags nothing never raises a
+false alarm, so the report always prints both rates.
+
+The task set `tasks/review-v1/` has 33 case directories (23 traps with `expected:
+clean`, 10 controls with `expected: bug`) in Python, JavaScript and Go. Each holds a
+`diff.patch`, the post-change `context/` files, and a `case.json` with a human-facing
+`why`; controls also carry `bug_location: {path, line}` into the post-change file.
+`case.json` never reaches the reviewer: the staged workspace holds only the patch and
+context, in a directory named by random bytes, and the prompt says nothing about
+traps. The corpus is adapted from oh-my-hermes' MIT-licensed review-false-alarms
+corpus; `tasks/review-v1/README.md` records the attribution and the three cases whose
+`why` was wrong or incomplete (two were real bugs in traps, one had an unstated
+bound).
+
+Every arm receives the same prompt and the same read-only tools. Pi arms add
+`--tools read,grep,find,ls`, `--offline` and flags that disable skills, prompt templates,
+context files and MCP; Claude Code runs with only `Read,Glob,Grep` available (`--tools`). The read tools can still open absolute paths, so run the bench from a machine where the corpus answers (`case.json`) are not the reviewer's business, or from an installed copy outside the reviewer's working tree. Other harness
+arms are refused rather than run with write tools. The reply must end with exactly one
+line, `VERDICT: clean` or `VERDICT: bug <path>:<line>`, with the path relative to
+`context/`. Markdown around the line and `context/`, `a/`, `b/` or `./` path prefixes
+are accepted; a verdict followed by more prose is not.
+
+| Reply | Trap | Control |
+| --- | --- | --- |
+| clean | `clean_ok` | `miss_clean` |
+| bug at the same path within ±3 lines | `false_alarm` | `hit` |
+| bug elsewhere | `false_alarm` | `miss_location` |
+| missing, garbled or not the last line | `no_verdict` | `no_verdict` |
+
+`no_verdict` is left out of both rates and reported on its own, split by kind, so an
+arm that times out on traps cannot look careful; the two-sided rule refuses to decide
+while the arms' no-verdict counts differ. The report prints per arm the false-alarm
+rate, hit rate, no-verdict count split by kind, wrong-location count, cases whose
+outcome changed between adjacent runs (flips), and token totals. Cost in dollars is
+shown when the model has a rate table; a model named with `--model-id` has no rate
+table and is compared in tokens. Rows are appended one at a time and resume skips
+finished (arm, case, run) rows. A hard per-run timeout kills the child process group;
+`PB_LOG_DIR` keeps scrubbed raw logs. There is no warm-up request: every call is one
+graded review.
+
+With exactly two arms the last line applies the two-sided rule in both directions: an
+arm wins only when its false-alarm rate is lower **and** its hit rate is not lower; the
+line names the winner, or says why neither wins. A rate difference of one run in a
+small corpus is within noise; read the per-case table before acting on it. Coverage
+must match (same cases, same run counts) or the line says `not comparable` and names
+the difference. If any case has fewer than three runs, the line is prefixed `noise`.
+The rule is applied to the whole table, not to a selected subset after seeing the
+numbers. `paretobench review --dry-run` grades the shipped hand-written replies with
+no model call; its numbers measure the grader, not any reviewer. `paretobench review
+--validate` checks the corpus schema, that each control's `bug_location` names an
+existing line, and that each patch describes its context at the stated line numbers.
+
 ## Versioning
 
 Every row carries `task_set` (the hash of the task files) and `pb_version`. A changed task set starts a new

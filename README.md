@@ -79,6 +79,29 @@ paretobench model --harness steak-pi --models example-flat,example-paid --reps 3
 paretobench report runs/run2 --md
 ```
 
+## Review bench
+
+`paretobench review` measures a different question: does a reviewer invent bugs in a
+correct change, and does it still find the real bug in a broken one? The `review-v1`
+task set has 33 small changes in Python, JavaScript and Go. Every arm gets the same
+neutral prompt, read-only file tools and a fresh random workspace. The reply must
+end with `VERDICT: clean` or `VERDICT: bug <path>:<line>`; the answer file is never
+shown to the reviewer. Each case runs three times by default.
+
+```sh
+paretobench review --validate
+paretobench review --dry-run                 # offline grading of recorded replies
+paretobench review --model example-flat --harness pi --reps 3 --par 2 --out runs/review
+paretobench review --report runs/review      # re-grade and print the table
+```
+
+Use `--model-id provider/model` instead of `--model KEY` to try a model without a
+config entry; that arm reports tokens, not dollars. The table gives false-alarm rate,
+hit rate, no-verdict, wrong location, flips and usage per arm. With exactly two arms
+it also states the two-sided rule: fewer false alarms **and** a hit rate not lower.
+Fewer than three runs per case is labelled `noise`. Corpus attribution and the cases
+corrected from the source corpus are in `tasks/review-v1/README.md`.
+
 ## Published results and task sets
 
 [Published tables and limitations](docs/RESULTS.md) link to the unchanged raw rows and
@@ -142,7 +165,8 @@ python3 -m unittest discover -s tests
 
 Covers the statistics (bootstrap determinism, Wilson, sign test, frontier, verdict rule, pass@k, timeouts, per-repeat
 correct), the long set (deterministic generator, every reference passes, every untouched fixture fails, a runner run
-through scripted agents), legacy row
+through scripted agents), the review bench (corpus and patch validation, verdict extraction, report math, the offline
+dry run and a scripted live run with resume and a process-group timeout), legacy row
 import, task-set mixing refusal, config validation, command construction for all eight harnesses with
 fake executables (keys never in argv), resume, and stop cleanup with a fake slow harness.
 
