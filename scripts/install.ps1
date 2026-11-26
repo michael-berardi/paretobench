@@ -7,6 +7,15 @@
 # PARETOBENCH_RELEASE_BASE (override the download base URL, used by tests).
 function Install-ParetoBench {
     $ErrorActionPreference = 'Stop'
+    # Telemetry off for every process this installer or a benchmark starts.
+    $savedPrivacyEnv = @{}
+    foreach ($n in @('DO_NOT_TRACK', 'HF_HUB_DISABLE_TELEMETRY', 'DSH_TELEMETRY_MODE')) {
+        $savedPrivacyEnv[$n] = [Environment]::GetEnvironmentVariable($n)
+        [Environment]::SetEnvironmentVariable($n, $null)
+    }
+    $env:DO_NOT_TRACK = '1'
+    $env:HF_HUB_DISABLE_TELEMETRY = '1'
+    $env:DSH_TELEMETRY_MODE = 'DISABLED'
 
 $repo = 'michael-berardi/paretobench'
 $base = if ($env:PARETOBENCH_RELEASE_BASE) { $env:PARETOBENCH_RELEASE_BASE }
@@ -49,6 +58,21 @@ $savedPythonPath = $env:PYTHONPATH; $savedTasks = $env:PARETOBENCH_TASKS
 $stage = $null; $old = Join-Path $homeDir 'app.old'
 $marker = 'ParetoBench launcher, written by install'
 # True when $path may be written: absent, or one of our own shims (marker, or the unmarked shape 0.2.0 wrote).
+function Set-PrivateAcl($path) {
+    if (-not (Test-Path -LiteralPath $path)) { return }
+    try {
+        $acl = Get-Acl -LiteralPath $path
+        $acl.SetAccessRuleProtection($true, $false)
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent().User
+        $inherit = if ((Get-Item -LiteralPath $path).PSIsContainer) { 'ContainerInherit,ObjectInherit' } else { 'None' }
+        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+            $identity, 'FullControl', $inherit, 'None', 'Allow')
+        $acl.SetAccessRule($rule)
+        Set-Acl -LiteralPath $path -AclObject $acl
+    } catch {
+        Write-Host "Could not restrict permissions on $path : $_"
+    }
+}
 function Test-OurShim($path) {
     if (-not (Test-Path -LiteralPath $path)) { return $true }
     $text = Get-Content -LiteralPath $path -Raw -ErrorAction SilentlyContinue
@@ -105,8 +129,11 @@ try {
     # The models config lives outside the install so upgrades keep it. Seed the documented example when absent.
     $models = if ($env:PARETOBENCH_CONFIG) { $env:PARETOBENCH_CONFIG } else { Join-Path $userHome '.config/paretobench/models.json' }
     if (-not (Test-Path $models)) {
-        New-Item -ItemType Directory -Path (Split-Path $models -Parent) -Force | Out-Null
+        $modelsDir = Split-Path $models -Parent
+        New-Item -ItemType Directory -Path $modelsDir -Force | Out-Null
         Copy-Item (Join-Path $appDir 'configs/models.example.json') $models
+        if ($isWin) { Set-PrivateAcl $modelsDir; Set-PrivateAcl $models }
+        else { & chmod 700 $modelsDir; & chmod 600 $models }
         Write-Host "Seeded example models config at $models; edit it with your own models and routes before running a bench."
     }
 
@@ -196,6 +223,9 @@ try {
     Write-Host 'Next: paretobench selftest'
 } finally {
     $env:PYTHONPATH = $savedPythonPath; $env:PARETOBENCH_TASKS = $savedTasks
+    foreach ($n in $savedPrivacyEnv.Keys) {
+        [Environment]::SetEnvironmentVariable($n, $savedPrivacyEnv[$n])
+    }
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     if ($stage) { Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue }
     # An install that died between the two moves leaves the previous release in app.old: put it back.

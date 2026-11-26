@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.1 - 2026-11-26
+
+- **Privacy hardening.** Every child process started by a bench, a review, a local model server or a
+  harness version check now gets `DO_NOT_TRACK=1` and `HF_HUB_DISABLE_TELEMETRY=1`; the DSH arms keep
+  `DSH_TELEMETRY_MODE=DISABLED`. Both installers set the same off switches, create private config
+  files (0600, config directories 0700 on Unix; current-user ACLs on Windows), and keep `umask 077`
+  on Unix. No telemetry or analytics code is present.
+- Result directories created by a run are 0700, and rows, summaries and raw logs are 0600. Raw logs
+  under `PB_LOG_DIR` can be bounded with `PB_LOG_KEEP=<n>` (keep the newest n `.jsonl` files).
+  Per-lane agent and harness homes are private as well.
+- Added a `## Privacy` section to the README and removed third-party badge images from it. Added
+  offline regression tests for forbidden telemetry imports/endpoints, socket-free offline commands,
+  telemetry-off child environments and private file permissions.
+
 ## 0.8.0 - 2026-11-26
 
 - **Update notices and `paretobench update`.** Once a day, an interactive command makes one

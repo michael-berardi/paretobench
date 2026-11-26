@@ -17,7 +17,74 @@ TOKEN_KEYS = ("i", "cr", "cw", "o")
 # Used when every rate for a model is 0 (flat plan): weighted tokens instead of dollars.
 WEIGHTS = {"i": 1.0, "cr": 0.1, "cw": 1.25, "o": 4.0}
 
+# Off switches set in every process ParetoBench starts. DSH gets its own
+# DSH_TELEMETRY_MODE=DISABLED from the dsh adapter; these cover the other tools
+# a harness or a configured local model server may load.
+TELEMETRY_OFF_ENV = {"DO_NOT_TRACK": "1", "HF_HUB_DISABLE_TELEMETRY": "1"}
+DEFAULT_LOG_KEEP = 200
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def child_env(extra=None):
+    """Environment for a child process: user env, then adapter extras, then telemetry off."""
+    env = dict(os.environ)
+    if extra:
+        env.update(extra)
+    env.update(TELEMETRY_OFF_ENV)
+    return env
+
+
+def private_dir(path):
+    """Create a directory 0700 if it is absent. Return True when it was created."""
+    if os.path.isdir(path):
+        return False
+    os.makedirs(path, mode=0o700, exist_ok=True)
+    os.chmod(path, 0o700)
+    return True
+
+
+def private_open(path, append=False):
+    """Open a tool-owned text file with 0600 permissions (create or truncate)."""
+    flags = os.O_WRONLY | os.O_CREAT | (os.O_APPEND if append else os.O_TRUNC)
+    fd = os.open(path, flags, 0o600)
+    try:
+        os.chmod(path, 0o600)
+    except OSError:
+        os.close(fd)
+        raise
+    return os.fdopen(fd, "a" if append else "w")
+
+
+def write_private(path, text):
+    with private_open(path) as f:
+        f.write(text)
+
+
+def log_keep():
+    """Bound on raw .jsonl logs kept in PB_LOG_DIR (PB_LOG_KEEP, default 200)."""
+    raw = os.environ.get("PB_LOG_KEEP", str(DEFAULT_LOG_KEEP))
+    try:
+        n = int(raw)
+    except ValueError:
+        raise PBError("bad-log-keep", f"PB_LOG_KEEP must be a positive integer, got {raw!r}")
+    if n < 1:
+        raise PBError("bad-log-keep", f"PB_LOG_KEEP must be a positive integer, got {raw!r}")
+    return n
+
+
+def prune_logs(log_dir):
+    """Keep only the newest .jsonl logs in a tool-owned PB_LOG_DIR."""
+    try:
+        paths = [os.path.join(log_dir, n) for n in os.listdir(log_dir) if n.endswith(".jsonl")]
+    except OSError:
+        return
+    dated = sorted(((os.path.getmtime(p), p) for p in paths if os.path.isfile(p)), reverse=True)
+    for _mtime, path in dated[log_keep():]:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 class PBError(Exception):

@@ -526,11 +526,11 @@ def write_reports(summary, out_dir):
     """Write summary.json and summary.md beside the rows."""
     jp = os.path.join(out_dir, "summary.json")
     mp = os.path.join(out_dir, "summary.md")
-    with open(jp, "w") as f:
+    with C.private_open(jp) as f:
         json.dump(ST.clean({"bench": "review", "task_set": C.REVIEW_TASK_SET,
                             "pb_version": __version__, "arms": summary,
                             "win_rule": win_rule(summary)}), f, indent=2)
         f.write("\n")
-    with open(mp, "w") as f:
+    with C.private_open(mp) as f:
         f.write(render(summary, md=True) + "\n")
     return jp, mp

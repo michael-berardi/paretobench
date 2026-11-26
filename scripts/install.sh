@@ -6,6 +6,10 @@
 # Environment: PARETOBENCH_HOME (default ~/.paretobench), PARETOBENCH_BIN_DIR (default ~/.local/bin),
 # PARETOBENCH_VERSION (default: latest, e.g. 0.1.0), PARETOBENCH_RELEASE_BASE (override the download base URL, used by tests).
 set -eu
+# Everything this installer writes is private by default; shims opt back into 0755.
+umask 077
+# No dependency started by the installer or by a benchmark sends usage data.
+export DO_NOT_TRACK=1 HF_HUB_DISABLE_TELEMETRY=1 DSH_TELEMETRY_MODE=DISABLED
 
 REPO="michael-berardi/paretobench"
 HOME_DIR="${PARETOBENCH_HOME:-$HOME/.paretobench}"
@@ -98,8 +102,9 @@ SWAPPING=""
 # The models config lives outside the install so upgrades keep it. Seed the documented example when absent.
 MODELS="${PARETOBENCH_CONFIG:-$HOME/.config/paretobench/models.json}"
 if [ ! -f "$MODELS" ]; then
-  mkdir -p "$(dirname "$MODELS")"
+  mkdir -p "$(dirname "$MODELS")"  # umask 077 keeps a newly created config dir at 0700
   cp "$APP/configs/models.example.json" "$MODELS"
+  chmod 600 "$MODELS"
   say "Seeded example models config at $MODELS; edit it with your own models and routes before running a bench."
 fi
 

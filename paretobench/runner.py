@@ -129,7 +129,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
     # --- one private work dir per runner process, removed on exit (Steak Pi lanes
     # hold a copy of the auth store). Two concurrent runs never share fixtures. ---
     base = os.path.join(tempfile.gettempdir(), "paretobench")
-    os.makedirs(base, exist_ok=True)
+    C.private_dir(base)
     work = tempfile.mkdtemp(prefix=f"run-{os.getpid()}-", dir=base)
     os.chmod(work, 0o700)
     live = set()
@@ -246,6 +246,8 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
     # PB_LOG_DIR=<dir> keeps each run's raw event stream (keys scrubbed) as
     # <entry>-<task>-<rep>.jsonl for analysis.
     log_dir = os.environ.get("PB_LOG_DIR")
+    if log_dir:
+        C.log_keep()  # refuse a bad retention bound before any model call
     last_log = {}
 
     def keep_log(entry_name, slot, out, err):
@@ -259,7 +261,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
         cmd, env_extra = a.build_command(ex, e["mcfg"], prompt, lane,
                                          model_patch=patch_files.get(e["model"]),
                                          extra_patches=e["extra_patches"])
-        env = {**os.environ, **env_extra}
+        env = C.child_env(env_extra)
         if e["key_env"]:
             env[e["key_env"]] = e["key_val"]
         try:
@@ -294,7 +296,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
                 return {}, "", scrub(repr(err))[:200], retries, cwd
 
     out_dir = os.path.abspath(os.path.expanduser(out_dir))
-    os.makedirs(out_dir, exist_ok=True)
+    C.private_dir(out_dir)
     out_path = os.path.join(out_dir, "rows.jsonl")
     done = set()
     if os.path.exists(out_path):
@@ -370,12 +372,13 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
         with open(os.path.join(d, "ans.txt"), "w") as f:
             f.write(text)
         if log_dir and (e["name"], slot) in last_log:
-            os.makedirs(log_dir, exist_ok=True)
-            with open(os.path.join(log_dir, f"{e['name']}-{task}-{rep}.jsonl"), "w") as f:
-                f.write(last_log.pop((e["name"], slot)))
+            C.private_dir(log_dir)
+            C.write_private(os.path.join(log_dir, f"{e['name']}-{task}-{rep}.jsonl"),
+                            last_log.pop((e["name"], slot)))
+            C.prune_logs(log_dir)
         chk_err, chk = "", False
         try:
-            c = subprocess.run([sys.executable, checker, task, "ans.txt"], cwd=d,
+            c = subprocess.run([sys.executable, checker, task, "ans.txt"], env=C.child_env(), cwd=d,
                                capture_output=True, text=True, timeout=chk_timeout)
             chk = c.stdout.strip() == "true"
             if not chk:
@@ -397,7 +400,7 @@ def run_bench(bench, entries, reps, par, out_dir, task_names=None, timeout=None,
         with lock:
             if stopping.is_set():
                 return
-            with open(out_path, "a") as f:
+            with C.private_open(out_path, append=True) as f:
                 f.write(json.dumps(row) + "\n")
                 f.flush()
             print(json.dumps(row), flush=True)
@@ -470,7 +473,8 @@ def serve_command(argv, timeout, what, live=None, live_lock=None):
     """Run a model's serve start/stop command; a failure stops the bench with a named error (its last output kept).
     With `live`, the command's process group is registered there while it runs, so a signal kills it too."""
     try:
-        p = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, start_new_session=True)
+        p = subprocess.Popen(argv, env=C.child_env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             text=True, start_new_session=True)
         if live is not None:
             with live_lock:
                 live.add(p.pid)

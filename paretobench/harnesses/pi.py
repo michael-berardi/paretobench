@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 
+from .. import config as C
 from ..config import PBError
 from . import RunFail, events_of, empty_usage
 
@@ -30,7 +31,7 @@ def validate(mcfg, ex):
 
 
 def version(ex):
-    return subprocess.run([ex["pi_bin"], "--version"], capture_output=True, text=True,
+    return subprocess.run([ex["pi_bin"], "--version"], env=C.child_env(), capture_output=True, text=True,
                           timeout=60).stdout.strip()
 
 
@@ -41,10 +42,13 @@ def setup_lane(ex, mcfg, work, slot, lane_name):
 def make_agent_dir(ex, work, slot, lane_name, pkgs):
     ad = os.path.join(work, "agents", f"{lane_name}-{slot}")
     if not os.path.isdir(ad):
-        os.makedirs(ad)
-        shutil.copy(os.path.join(ex["pi_agent_dir"], "auth.json"), ad)
-        shutil.copy(os.path.join(ex["pi_agent_dir"], "models.json"), ad)
-        with open(os.path.join(ad, "settings.json"), "w") as f:
+        os.makedirs(ad, mode=0o700)
+        os.chmod(ad, 0o700)
+        for name in ("auth.json", "models.json"):
+            dest = os.path.join(ad, name)
+            shutil.copy(os.path.join(ex["pi_agent_dir"], name), dest)
+            os.chmod(dest, 0o600)
+        with C.private_open(os.path.join(ad, "settings.json")) as f:
             json.dump({"quietStartup": True, "packages": list(pkgs)}, f)
         # Local models (Steak Pi `local/<id>`) keep their profiles, holds and server leases in the agent dir's local/
         # folder; the lane must see the operator's, or every local-model run is refused as an unknown model.
