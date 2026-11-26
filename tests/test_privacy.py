@@ -177,6 +177,13 @@ class TestPrivateStorage(unittest.TestCase):
             with mock.patch.dict(os.environ, {"PB_LOG_KEEP": "2"}):
                 C.prune_logs(d)
             self.assertEqual(len(os.listdir(d)), 2)
+            for i in range(3):
+                with open(os.path.join(d, f"more-{i}.jsonl"), "w") as f:
+                    f.write("x")
+            with mock.patch.dict(os.environ, {}, clear=False):
+                os.environ.pop("PB_LOG_KEEP", None)
+                C.prune_logs(d)  # no bound set: the user's logs are all kept
+            self.assertEqual(len(os.listdir(d)), 5)
             with mock.patch.dict(os.environ, {"PB_LOG_KEEP": "0"}):
                 with self.assertRaises(C.PBError) as bad:
                     C.log_keep()

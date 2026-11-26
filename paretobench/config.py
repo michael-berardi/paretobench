@@ -21,7 +21,6 @@ WEIGHTS = {"i": 1.0, "cr": 0.1, "cw": 1.25, "o": 4.0}
 # DSH_TELEMETRY_MODE=DISABLED from the dsh adapter; these cover the other tools
 # a harness or a configured local model server may load.
 TELEMETRY_OFF_ENV = {"DO_NOT_TRACK": "1", "HF_HUB_DISABLE_TELEMETRY": "1"}
-DEFAULT_LOG_KEEP = 200
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -62,8 +61,13 @@ def write_private(path, text):
 
 
 def log_keep():
-    """Bound on raw .jsonl logs kept in PB_LOG_DIR (PB_LOG_KEEP, default 200)."""
-    raw = os.environ.get("PB_LOG_KEEP", str(DEFAULT_LOG_KEEP))
+    """Bound on raw .jsonl logs kept in PB_LOG_DIR, from PB_LOG_KEEP; None keeps every log.
+
+    Logs are written only to a directory the user chose, so nothing is deleted unless the
+    user also sets a bound."""
+    raw = os.environ.get("PB_LOG_KEEP")
+    if raw is None or raw == "":
+        return None
     try:
         n = int(raw)
     except ValueError:
@@ -74,13 +78,16 @@ def log_keep():
 
 
 def prune_logs(log_dir):
-    """Keep only the newest .jsonl logs in a tool-owned PB_LOG_DIR."""
+    """With PB_LOG_KEEP set, keep only the newest .jsonl logs in PB_LOG_DIR."""
+    keep = log_keep()
+    if keep is None:
+        return
     try:
         paths = [os.path.join(log_dir, n) for n in os.listdir(log_dir) if n.endswith(".jsonl")]
     except OSError:
         return
     dated = sorted(((os.path.getmtime(p), p) for p in paths if os.path.isfile(p)), reverse=True)
-    for _mtime, path in dated[log_keep():]:
+    for _mtime, path in dated[keep:]:
         try:
             os.remove(path)
         except OSError:

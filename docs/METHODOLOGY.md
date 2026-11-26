@@ -170,7 +170,7 @@ One JSON row per run: bench, harness, model, task, rep, correct, wall seconds, u
 cache-read and cache-write tokens, output tokens, reasoning tokens, turns, tool calls, retries, error text,
 checker error text, harness version, pb version, task set hash, and a timestamp. Raw event streams can be
 kept with `PB_LOG_DIR`, with keys scrubbed. Result directories created by a run are 0700; rows,
-summaries and logs are 0600. Only the newest `PB_LOG_KEEP` `.jsonl` logs are retained (default 200).
+summaries and logs are 0600. Set `PB_LOG_KEEP=<n>` to keep only the newest n `.jsonl` logs there.
 Rows are appended one at a time. An interrupted run resumes:
 rows already present for (harness, model, task, rep) are skipped.
 
