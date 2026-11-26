@@ -15,6 +15,7 @@ from . import runner as RUN
 from . import review as RV
 from . import review_runner as RR
 from . import stats as ST
+from . import updates as U
 from . import harnesses as H
 
 
@@ -221,6 +222,15 @@ def _doctor_cmd(args):
     return 1 if missing else 0
 
 
+def _update_cmd(args):
+    if args.background and hasattr(os, "nice"):
+        try:
+            os.nice(10)  # an automatic install runs at low priority
+        except OSError:
+            pass
+    return U.run_update(args)
+
+
 def _validate_cmd(args):
     models = C.load_models()
     print(f"ok models config: {C.models_path()} ({len(models)} models: {', '.join(sorted(models))})")
@@ -316,14 +326,35 @@ def main(argv=None):
     p.add_argument("--task-set", choices=sorted(C.TASK_SETS), help="only this task set (default: every one present)")
     p.set_defaults(fn=_validate_cmd)
 
+    p = sub.add_parser("update", help="install a newer release, or check, skip, auto-update, roll back")
+    action = p.add_mutually_exclusive_group()
+    action.add_argument("--check", action="store_true", help="report only: exit 0 current, 10 available, 1 failed")
+    action.add_argument("--skip", action="store_true", help="hide this version's notice until a newer one")
+    action.add_argument("--auto", choices=("on", "off", "status"), metavar="on|off|status",
+                        help="install future updates automatically (off by default)")
+    action.add_argument("--rollback", action="store_true", help="restore the previous release (installer bundle)")
+    action.add_argument("--background", action="store_true", help=argparse.SUPPRESS)
+    p.add_argument("--yes", action="store_true", help="install without asking")
+    p.set_defaults(fn=_update_cmd)
+
     args = ap.parse_args(argv)
+    check, ok = None, False
     try:
         C.load_env_file()
-        rc = args.fn(args)
+        # The daily release check runs beside the command; never for `update` or --json output.
+        if args.cmd != "update" and not getattr(args, "json", False) and U.notice_allowed():
+            check = U.start_background_check()
+        rc = args.fn(args) or 0
+        ok = rc == 0
     except C.PBError as e:
         print(f"error: {e.name}: {e}", file=sys.stderr)
-        return 2
-    return rc or 0
+        rc = 2
+    finally:
+        if args.cmd != "update":
+            U.prune_rollback(ok)
+    if check is not None:
+        U.finish_background_check(check, show=ok)  # the notice follows only a successful command
+    return rc
 
 
 if __name__ == "__main__":

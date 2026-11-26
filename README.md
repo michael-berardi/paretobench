@@ -46,13 +46,21 @@ Requires Python 3.11+. Downloads the bundle and verifies its SHA-256, installs `
 and `pb` in `~/.local/bin` (Windows: `%LOCALAPPDATA%\ParetoBench\bin`), and seeds
 `~/.config/paretobench/models.json` if absent. Edit that config before benchmarking.
 The bundle lives in `~/.paretobench/app` (Windows: `%LOCALAPPDATA%\ParetoBench\app`).
-No sudo or venv. Re-run to update without replacing your config. Remove the bundle
-and shims to uninstall. [Installer details and overrides](scripts/install.sh).
+No sudo or venv. Update with `paretobench update` or by re-running the installer; your
+config is kept. To uninstall, remove the bundle, shims, `~/.config/paretobench` and the
+update cache ([paths](docs/updates.md#files-and-uninstall)). [Installer details and overrides](scripts/install.sh).
 
 ### From source
 
 From a checkout, `./pb` needs no install. `pip install .` installs the console script only;
 set `PARETOBENCH_TASKS` to the checkout’s `tasks/` directory to use its task sets.
+
+## Updates
+
+Interactive commands print a short notice on stderr when a newer release exists. Run
+`paretobench update` to install it, `paretobench update --skip` to hide that version, or
+`paretobench update --auto on` to install future updates automatically (off by default).
+Details, `--check` exit codes and rollback: [docs/updates.md](docs/updates.md).
 
 ## First use
 
@@ -157,6 +165,12 @@ warm-up fails aborts with a named error. Resume from existing rows. Rate-limit r
 at most 2). Failures stay in the sample as incorrect runs. See [docs/METHODOLOGY.md](docs/METHODOLOGY.md)
 for the full method, the exact commands per harness, the statistics and the limits.
 
+## Privacy
+
+No telemetry, accounts or identifiers. Benchmarks talk only to the models you configure.
+Once a day, an interactive command makes one anonymous request for the latest release on
+GitHub; turn it off with `PARETOBENCH_NO_UPDATE_CHECK=1`. Details: [PRIVACY.md](PRIVACY.md).
+
 ## Tests
 
 ```sh
@@ -168,7 +182,8 @@ correct), the long set (deterministic generator, every reference passes, every u
 through scripted agents), the review bench (corpus and patch validation, verdict extraction, report math, the offline
 dry run and a scripted live run with resume and a process-group timeout), legacy row
 import, task-set mixing refusal, config validation, command construction for all eight harnesses with
-fake executables (keys never in argv), resume, and stop cleanup with a fake slow harness.
+fake executables (keys never in argv), resume, stop cleanup with a fake slow harness, and the update
+check, notice and verified install against a fake release (no network).
 
 ## License
 

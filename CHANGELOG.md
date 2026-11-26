@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.0 - 2026-11-26
+
+- **Update notices and `paretobench update`.** Once a day, an interactive command makes one
+  anonymous GitHub release check in the background and, when a newer stable release exists,
+  prints a two-line notice on stderr after the command (never in `--json` output or results
+  files; off in CI, agent shells, non-terminals and with `PARETOBENCH_NO_UPDATE_CHECK=1`).
+  `update` installs it; `--check` exits 0/10/1, `--skip` hides a version, `--auto on|off|status`
+  turns on automatic installs (off by default), `--rollback` restores the previous bundle.
+- **Verified installs.** Installer bundles are checked against the release's `SHA256SUMS`
+  before unpacking and started once before the swap; one `app.previous` is kept until the new
+  version has run a command (seven days at most). uv tool, pipx and pip installs run their
+  package manager pinned to the GitHub release tag. Details in `docs/updates.md` and `PRIVACY.md`.
+
 ## 0.7.0 - 2026-11-20
 
 - **New bench: `paretobench review` with task set `review-v1`.** It measures whether a
