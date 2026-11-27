@@ -10,7 +10,7 @@
 - Result directories created by a run are 0700, and rows, summaries and raw logs are 0600. Raw logs
   under `PB_LOG_DIR` can be bounded with `PB_LOG_KEEP=<n>` (keep the newest n `.jsonl` files).
   Per-lane agent and harness homes are private as well.
-- Added a `## Privacy` section to the README and removed third-party badge images from it. Added
+- `PRIVACY.md` documents these defaults. Added
   offline regression tests for forbidden telemetry imports/endpoints, socket-free offline commands,
   telemetry-off child environments and private file permissions.
 
