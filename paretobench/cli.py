@@ -133,13 +133,14 @@ def _selftest_cmd(args):
     wrong_fix = {"h3", "h4"}
 
     def check(dest, task):
-        r = subprocess.run([sys.executable, check_py, task, "ans.txt"],
+        r = subprocess.run([sys.executable, check_py, task, "ans.txt"], env=C.child_env(),
                            cwd=dest, capture_output=True, text=True)
         return r.stdout.strip() == "true", r.stderr.strip()
 
     def run_script(dest, name):
         path = os.path.join(spec_dir, "reference", name + ".py")
-        r = subprocess.run([sys.executable, path], cwd=dest, capture_output=True, text=True)
+        r = subprocess.run([sys.executable, path], env=C.child_env(), cwd=dest,
+                           capture_output=True, text=True)
         if r.returncode != 0:
             raise RuntimeError(f"reference {name} failed: {r.stderr.strip()[-300:]}")
 

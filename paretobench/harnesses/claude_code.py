@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 
+from .. import config as C
 from ..config import PBError
 from . import RunFail, empty_usage
 
@@ -18,8 +19,8 @@ def validate(mcfg, ex):
 
 
 def version(ex):
-    return subprocess.run([ex["claude_bin"], "--version"], capture_output=True, text=True,
-                          timeout=60).stdout.strip()
+    return subprocess.run([ex["claude_bin"], "--version"], env=C.child_env(), capture_output=True,
+                          text=True, timeout=60).stdout.strip()
 
 
 def setup_lane(ex, mcfg, work, slot, lane_name):

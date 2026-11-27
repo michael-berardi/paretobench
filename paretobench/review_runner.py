@@ -54,7 +54,8 @@ def inline_model(model_id, harness):
 def stage(case, root):
     """Copy only what a reviewer may see, into a directory named by random bytes."""
     workspace = os.path.join(root, secrets.token_hex(8))
-    os.mkdir(workspace)
+    os.mkdir(workspace, 0o700)
+    os.chmod(workspace, 0o700)
     shutil.copy2(os.path.join(case.directory, "diff.patch"), os.path.join(workspace, "diff.patch"))
     # Bytecode caches embed their compile-time path (which names the case), so they never reach the reviewer.
     shutil.copytree(os.path.join(case.directory, "context"), os.path.join(workspace, "context"),
@@ -96,7 +97,7 @@ def run(models, ex, harness, model, model_id, reps, par, out_dir,
     tset = C.REVIEW_TASK_SET + ":" + corpus_hash()
 
     out_dir = os.path.abspath(os.path.expanduser(out_dir))
-    os.makedirs(out_dir, exist_ok=True)
+    C.private_dir(out_dir)
     rows_path = os.path.join(out_dir, "rows.jsonl")
     done = set()
     if os.path.isfile(rows_path):
@@ -124,7 +125,7 @@ def run(models, ex, harness, model, model_id, reps, par, out_dir,
         return out_dir
 
     base = os.path.join(tempfile.gettempdir(), "paretobench-review")
-    os.makedirs(base, exist_ok=True)
+    C.private_dir(base)
     work = tempfile.mkdtemp(prefix=f"review-{os.getpid()}-", dir=base)
     os.chmod(work, 0o700)
     os.makedirs(os.path.join(work, "work"))
@@ -178,6 +179,8 @@ def run(models, ex, harness, model, model_id, reps, par, out_dir,
         return p.returncode, out, err
 
     log_dir = os.environ.get("PB_LOG_DIR")
+    if log_dir:
+        C.log_keep()  # refuse a bad retention bound before any model call
 
     def log_path(name, rep):
         safe = re.sub(r"[^A-Za-z0-9_.-]", "_", label)
@@ -186,11 +189,12 @@ def run(models, ex, harness, model, model_id, reps, par, out_dir,
     def keep_log(name, rep, out, err):
         if not log_dir:
             return
-        os.makedirs(log_dir, exist_ok=True)
-        with open(log_path(name, rep), "w") as f:
+        C.private_dir(log_dir)
+        with C.private_open(log_path(name, rep)) as f:
             f.write(scrub(out or ""))
             if err:
                 f.write("\n#stderr\n" + scrub(err)[-4000:])
+        C.prune_logs(log_dir)
 
     def one(rep, name, slot):
         case = cases[name]
@@ -199,7 +203,7 @@ def run(models, ex, harness, model, model_id, reps, par, out_dir,
         lane = adapter.setup_lane(ex, mcfg, work, slot, label)
         try:
             cmd, env_extra = adapter.review_command(ex, mcfg, REVIEW_PROMPT, lane)
-            env = {**os.environ, **env_extra}
+            env = C.child_env(env_extra)
             rc, out, err = child(cmd, workspace, env, timeout)
             u, text = adapter.parse(rc, out, err, scrub)
             err_text = ""
@@ -225,7 +229,7 @@ def run(models, ex, harness, model, model_id, reps, par, out_dir,
             "task_set": tset, "ts": round(time.time()),
         }
         with lock:
-            with open(rows_path, "a") as f:
+            with C.private_open(rows_path, append=True) as f:
                 f.write(json.dumps(row) + "\n")
                 f.flush()
         if verbose:

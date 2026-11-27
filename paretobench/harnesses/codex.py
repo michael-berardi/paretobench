@@ -75,8 +75,8 @@ def validate(mcfg, ex):
 def version(ex):
     if not ex.get("codex_bin") or not os.path.isfile(ex["codex_bin"]):
         raise PBError("codex-bin-missing", f"{ex.get('codex_bin') or '(not found)'} (set PB_CODEX_BIN)")
-    return subprocess.run([ex["codex_bin"], "--version"], capture_output=True, text=True,
-                          timeout=60).stdout.strip()
+    return subprocess.run([ex["codex_bin"], "--version"], env=C.child_env(), capture_output=True,
+                          text=True, timeout=60).stdout.strip()
 
 
 def wire_effort(d):
@@ -109,10 +109,10 @@ wire_api = "responses"
 
 def setup_lane(ex, mcfg, work, slot, lane_name):
     home = os.path.join(work, "codex-homes", f"{lane_name}-{slot}")
-    os.makedirs(home, exist_ok=True)
+    C.private_dir(home)
     if C.is_subscription(mcfg):
         return {"codex_home": home, "bridge": bridge_path(ex)}  # the bridge writes config.toml at launch
-    with open(os.path.join(home, "config.toml"), "w") as f:
+    with C.private_open(os.path.join(home, "config.toml")) as f:
         f.write(config_toml(mcfg))
     return {"codex_home": home}
 

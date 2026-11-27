@@ -37,14 +37,14 @@ def _validate(mcfg, ex):
 
 def version(ex):
     with tempfile.TemporaryDirectory(prefix="pb-version-") as home:
-        env = {**os.environ, "DSH_HOME": home, "DSH_TELEMETRY_MODE": "DISABLED"}
+        env = C.child_env({"DSH_HOME": home, "DSH_TELEMETRY_MODE": "DISABLED"})
         return subprocess.run([ex["dsh_bin"], "--version"], capture_output=True, text=True,
                               timeout=60, env=env).stdout.strip()
 
 
 def setup_lane(ex, mcfg, work, slot, lane_name):
     home = os.path.join(work, "homes", f"{lane_name}-{slot}")
-    os.makedirs(home, exist_ok=True)
+    C.private_dir(home)
     return {"home": home}
 
 

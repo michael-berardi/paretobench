@@ -83,13 +83,14 @@ def run(task_set="long-v1", out=print):
         return d
 
     def check(d, task):
-        r = subprocess.run([sys.executable, check_py, task, "ans.txt"], cwd=d, capture_output=True,
-                           text=True, timeout=900)
+        r = subprocess.run([sys.executable, check_py, task, "ans.txt"], env=C.child_env(), cwd=d,
+                           capture_output=True, text=True, timeout=900)
         return r.stdout.strip() == "true", r.stderr.strip()
 
     def run_ref(d, name):
         path = os.path.join(td, "reference", name + ".py")
-        r = subprocess.run([sys.executable, "-B", path], cwd=d, capture_output=True, text=True, timeout=900)
+        r = subprocess.run([sys.executable, "-B", path], env=C.child_env(), cwd=d,
+                           capture_output=True, text=True, timeout=900)
         if r.returncode != 0:
             raise RuntimeError(f"reference {name} failed: {(r.stdout + r.stderr).strip()[-400:]}")
         m = re.search(r"STEPS=(\d+)", r.stderr)

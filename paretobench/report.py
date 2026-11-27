@@ -278,9 +278,9 @@ def render(summary, md=False):
 def write_reports(summary, dir_path):
     jp = os.path.join(dir_path, "summary.json")
     mp = os.path.join(dir_path, "summary.md")
-    with open(jp, "w") as f:
+    with C.private_open(jp) as f:
         json.dump(ST.clean(summary), f, indent=2)
         f.write("\n")
-    with open(mp, "w") as f:
+    with C.private_open(mp) as f:
         f.write(render(summary, md=True) + "\n")
     return jp, mp
